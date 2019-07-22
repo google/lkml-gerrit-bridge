@@ -1,6 +1,8 @@
 from __future__ import print_function
+import base64
 import pickle
 import os.path
+import re
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -8,7 +10,146 @@ from google.auth.transport.requests import Request
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
-def main():
+class Patch(object):
+    def __init__(self):
+        self.messages = []
+
+class Patchset(object):
+    def __init__(self):
+        self.patches = []
+
+class MessageKey(object):
+    def __init__(self, key: str):
+        self.key = key
+
+class PatchsetFetcher(object):
+    def fetch_patchset(self, key: MessageKey) -> Patchset:
+        pass
+
+class Thread(object):
+    def __init__(self, key: MessageKey, message_ids=[]):
+        self.key = key
+        self.message_id = message_ids
+
+class Message(object):
+    def __init__(self, id, subject, in_reply_to, content):
+        self.id = id
+        self.subject = subject
+        self.in_reply_to = in_reply_to
+        self.content = content
+        self.children = []
+
+    def get_key(self):
+        match = re.match(r'\[(.+)\] .+', self.subject)
+        return match.group(1)
+
+    def __str__(self):
+        in_reply_to = self.in_reply_to or ''
+        return ('{\n' +
+                'id = ' + self.id + '\n' +
+                'subject = ' + self.subject + '\n' +
+                'in_reply_to = ' + in_reply_to + '\n' +
+                # 'content = ' + self.content + '\n' +
+                '}')
+
+    def __repr__(self):
+        return str(self)
+
+def look_up_label_id(service, label_name):
+    results = service.users().labels().list(userId='me').execute()
+    labels = results.get('labels', [])
+    for label in labels:
+        print(label['name'])
+    labels = [label for label in labels if label['name'] == label_name]
+    assert len(labels) == 1
+    return labels[0]['id']
+
+def get_subject(raw_message) -> str:
+    for header in raw_message['payload']['headers']:
+        if header['name'] == 'Subject':
+            return header['value']
+    return ''
+
+def get_message_id(raw_message) -> str:
+    for header in raw_message['payload']['headers']:
+        if header['name'] == 'Message-ID':
+            return header['value']
+    return ''
+
+def get_in_reply_to(raw_message) -> str:
+    for header in raw_message['payload']['headers']:
+        if header['name'] == 'In-Reply-To':
+            return header['value']
+    return None
+
+class GmailMessageIndex(object):
+    def __init__(self, service, label_name):
+        self._service = service
+        self._patchset_label_id = look_up_label_id(service, label_name)
+        self._lookup_index = {} # Maps MessageKey to Thread
+        self._messages_seen = {} # Maps message.id to message
+
+    def find_thread(self, key: MessageKey) -> Message:
+        return self._lookup_index(key.key)
+
+    def update(self):
+        fully_updated = False
+        next_page_token = None
+        new_messages = []
+        while not fully_updated:
+            response = self._service.users().messages().list(
+                    userId='me',
+                    labelIds=[self._patchset_label_id],
+                    pageToken=next_page_token).execute()
+            if self._check_if_messages_seen(response['messages'], new_messages) or 'nextPageToken' not in response:
+                break
+        self._add_messages_to_index(new_messages)
+
+    def _check_if_messages_seen(self, message_candidates, new_messages) -> bool:
+        """Returns True if it has seen some of the messages before"""
+        for raw_message in message_candidates:
+            if raw_message['id'] in self._messages_seen:
+                return True
+            raw_message = self._service.users().messages().get(userId='me', id=raw_message['id']).execute()
+            body = base64.urlsafe_b64decode(raw_message['payload']['body'].get('data', '').encode('ASCII'))
+            print(body)
+            message = Message(id=get_message_id(raw_message),
+                              subject=get_subject(raw_message),
+                              in_reply_to=get_in_reply_to(raw_message),
+                              content=body)
+            new_messages.append(message)
+        return False
+
+    def _add_messages_to_index(self, new_messages):
+        need_parent = []
+        for message in new_messages:
+            self._messages_seen[message.id] = message
+
+            if message.in_reply_to is None:
+                self._lookup_index[message.get_key()] = message
+            else:
+                need_parent.append(message)
+        print(self._messages_seen)
+        for message in need_parent:
+            print('need_parent: ' + str(message))
+            parent = self._messages_seen[message.in_reply_to]
+            print('parent:' + str(parent))
+            parent.children.append(message)
+
+
+def get_service():
+    creds = get_credentials_or_setup()
+    return build('gmail', 'v1', credentials=creds)
+
+class GmailPatchsetFetcher(object):
+    def fetch_patchset(self, key: MessageKey) -> Patchset:
+        service = self._get_service()
+
+    def _get_service(self):
+        creds = get_credentials_or_setup()
+        service = build('gmail', 'v1', credentials=creds)
+
+def get_credentials_or_setup():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
@@ -25,24 +166,26 @@ def main():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                    'credentials.json', SCOPES)
             creds = flow.run_local_server()
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
-    service = build('gmail', 'v1', credentials=creds)
+    return creds
 
-    # Call the Gmail API
-    results = service.users().labels().list(userId='me').execute()
-    labels = results.get('labels', [])
 
-    if not labels:
-        print('No labels found.')
-    else:
-        print('Labels:')
-        for label in labels:
-            print(label['name'])
+def main():
+    service = get_service()
+    message_index = GmailMessageIndex(service=service, label_name='KUnit Patchset')
+    message_index.update()
+    message = message_index.find_thread('PATCH v5 00/18')
+    messages = [message]
+    while True:
+        message = messages.pop()
+        messages.extend(message.children)
+        print(message.subject)
+
 
 if __name__ == '__main__':
     main()
