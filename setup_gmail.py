@@ -114,13 +114,11 @@ class GmailMessageIndex(object):
                     userId='me',
                     labelIds=[self._patchset_label_id],
                     pageToken=next_page_token).execute()
-            print('Found ' + str(len(response['messages'])) + ' new messages: ' + response['messages'][0]['id'])
+            print('Found ' + str(len(response['messages'])) + ' new messages')
             if self._check_if_messages_seen(response['messages'], new_messages) or 'nextPageToken' not in response:
                 break
             else:
-                print('Roughly ' + str(response['resultSizeEstimate']) + ' more messages to go')
                 next_page_token = response['nextPageToken']
-                print('Next pageToken: ' + next_page_token)
         self._add_messages_to_index(new_messages)
         self._serialize()
 
@@ -159,7 +157,6 @@ class GmailMessageIndex(object):
             if message.in_reply_to not in self._messages_seen:
                 # If we don't have the parent message, then we can't reconstruct
                 # the patchset for this group of emails anyway, so just skip.
-                print('No parent for: ' + str(message))
                 continue
             parent = self._messages_seen[message.in_reply_to]
             parent.children.append(message)
