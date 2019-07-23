@@ -41,7 +41,10 @@ class Message(object):
 
     def get_key(self):
         match = re.match(r'\[(.+)\] .+', self.subject)
-        return match.group(1)
+        if match:
+            return match.group(1)
+        else:
+            return None
 
     def __str__(self):
         in_reply_to = self.in_reply_to or ''
@@ -66,19 +69,19 @@ def look_up_label_id(service, label_name):
 
 def get_subject(raw_message) -> str:
     for header in raw_message['payload']['headers']:
-        if header['name'] == 'Subject':
+        if header['name'].lower() == 'subject':
             return header['value']
     return ''
 
 def get_message_id(raw_message) -> str:
     for header in raw_message['payload']['headers']:
-        if header['name'] == 'Message-ID':
+        if header['name'].lower() == 'message-id':
             return header['value']
     return ''
 
 def get_in_reply_to(raw_message) -> str:
     for header in raw_message['payload']['headers']:
-        if header['name'] == 'In-Reply-To':
+        if header['name'].lower() == 'in-reply-to':
             return header['value']
     return None
 
@@ -88,9 +91,19 @@ class GmailMessageIndex(object):
         self._patchset_label_id = look_up_label_id(service, label_name)
         self._lookup_index = {} # Maps MessageKey to Thread
         self._messages_seen = {} # Maps message.id to message
+        self._deserialize()
 
-    def find_thread(self, key: MessageKey) -> Message:
-        return self._lookup_index(key.key)
+    def _deserialize(self):
+        if os.path.exists('index.pickle'):
+            with open('index.pickle', 'rb') as index:
+                self._lookup_index, self._messages_seen = pickle.load(index)
+
+    def _serialize(self):
+        with open('index.pickle', 'wb') as index:
+            pickle.dump((self._lookup_index, self._messages_seen), index)
+
+    def find_thread(self, key: str) -> Message:
+        return self._lookup_index[key]
 
     def update(self):
         fully_updated = False
@@ -101,18 +114,25 @@ class GmailMessageIndex(object):
                     userId='me',
                     labelIds=[self._patchset_label_id],
                     pageToken=next_page_token).execute()
+            print('Found ' + str(len(response['messages'])) + ' new messages: ' + response['messages'][0]['id'])
             if self._check_if_messages_seen(response['messages'], new_messages) or 'nextPageToken' not in response:
                 break
+            else:
+                print('Roughly ' + str(response['resultSizeEstimate']) + ' more messages to go')
+                next_page_token = response['nextPageToken']
+                print('Next pageToken: ' + next_page_token)
         self._add_messages_to_index(new_messages)
+        self._serialize()
 
     def _check_if_messages_seen(self, message_candidates, new_messages) -> bool:
         """Returns True if it has seen some of the messages before"""
         for raw_message in message_candidates:
-            if raw_message['id'] in self._messages_seen:
+            raw_message = self._service.users().messages().get(
+                    userId='me', id=raw_message['id']).execute()
+            if get_message_id(raw_message) in self._messages_seen:
                 return True
-            raw_message = self._service.users().messages().get(userId='me', id=raw_message['id']).execute()
-            body = base64.urlsafe_b64decode(raw_message['payload']['body'].get('data', '').encode('ASCII'))
-            print(body)
+            body = base64.urlsafe_b64decode(raw_message['payload']['body']
+                                            .get('data', '').encode('ASCII'))
             message = Message(id=get_message_id(raw_message),
                               subject=get_subject(raw_message),
                               in_reply_to=get_in_reply_to(raw_message),
@@ -126,14 +146,22 @@ class GmailMessageIndex(object):
             self._messages_seen[message.id] = message
 
             if message.in_reply_to is None:
-                self._lookup_index[message.get_key()] = message
+                key = message.get_key()
+                if key:
+                    self._lookup_index[key] = message
+                else:
+                    # If message doesn't have the LKML style [PATCH v4 00/11],
+                    # we don't need to put it in the index.
+                    continue
             else:
                 need_parent.append(message)
-        print(self._messages_seen)
         for message in need_parent:
-            print('need_parent: ' + str(message))
+            if message.in_reply_to not in self._messages_seen:
+                # If we don't have the parent message, then we can't reconstruct
+                # the patchset for this group of emails anyway, so just skip.
+                print('No parent for: ' + str(message))
+                continue
             parent = self._messages_seen[message.in_reply_to]
-            print('parent:' + str(parent))
             parent.children.append(message)
 
 
@@ -174,17 +202,17 @@ def get_credentials_or_setup():
 
     return creds
 
+def print_message_tree(message, prefix=''):
+    print(prefix + message.subject)
+    for message in message.children:
+        print_message_tree(message, prefix=prefix + '  ')
 
 def main():
     service = get_service()
     message_index = GmailMessageIndex(service=service, label_name='KUnit Patchset')
     message_index.update()
     message = message_index.find_thread('PATCH v5 00/18')
-    messages = [message]
-    while True:
-        message = messages.pop()
-        messages.extend(message.children)
-        print(message.subject)
+    print_message_tree(message)
 
 
 if __name__ == '__main__':
