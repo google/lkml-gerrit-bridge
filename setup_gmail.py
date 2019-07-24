@@ -130,7 +130,7 @@ class GmailMessageIndex(object):
             if get_message_id(raw_message) in self._messages_seen:
                 return True
             body = base64.urlsafe_b64decode(raw_message['payload']['body']
-                                            .get('data', '').encode('ASCII'))
+                                            .get('data', '').encode('ASCII')).decode('utf-8')
             message = Message(id=get_message_id(raw_message),
                               subject=get_subject(raw_message),
                               in_reply_to=get_in_reply_to(raw_message),
@@ -203,6 +203,12 @@ def print_message_tree(message, prefix=''):
     print(prefix + message.subject)
     for message in message.children:
         print_message_tree(message, prefix=prefix + '  ')
+
+def find_thread(key: str) -> Message:
+    service = get_service()
+    message_index = GmailMessageIndex(service=service, label_name='KUnit Patchset')
+    message_index.update()
+    return message_index.find_thread(key)
 
 def main():
     service = get_service()
