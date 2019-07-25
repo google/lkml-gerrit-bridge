@@ -128,7 +128,6 @@ def get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
         else:
             prefix_count_map[prefix] += 1
     prefix, count = max(prefix_count_map.items(), key=lambda x: x[1])
-    print('Prefix is: ' + prefix + ' with a count of: ' + str(count))
     return prefix
 
 def build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote_prefix: str) -> Dict[str, List[Line]]:
@@ -188,11 +187,39 @@ def find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
         return max(possible_traversals, key=lambda x: len(x))
     return lines_so_far
 
-def find_quoted_lines(parent_lines: List[Line],
-                      child_lines: List[Line]) -> (List[QuotedLine], str):
+def find_quoted_lines_max_traversal_method(
+        parent_lines: List[Line],
+        child_lines: List[Line]) -> (List[QuotedLine], str):
     quote_prefix = get_quote_prefix(parent_lines, child_lines)
     traversal_map = build_traversal_map(parent_lines, child_lines, quote_prefix)
     return find_maximal_map_traversal(traversal_map, parent_lines, []), quote_prefix
+
+NORMALIZE_WHITESPACE_MATCHER = re.compile(r'\s+')
+
+def normalize_whitespace(string: str) -> str:
+    return NORMALIZE_WHITESPACE_MATCHER.sub(' ', string)
+
+def find_quoted_lines(parent_lines: List[Line],
+                      child_lines: List[Line]) -> (List[QuotedLine], str):
+    quote_prefix = get_quote_prefix(parent_lines, child_lines)
+    parent_line_set = {}
+    for line in parent_lines:
+        parent_line_set[normalize_whitespace(line.text)] = line
+    quoted_lines = []
+    for line in child_lines:
+        line_text = line.text
+        if not line_text.startswith(quote_prefix):
+            continue
+        line_text = normalize_whitespace(line_text[len(quote_prefix):])
+        if line_text in parent_line_set:
+            parent_line = parent_line_set[line_text]
+            quoted_lines.append(QuotedLine(
+                    text=parent_line.text,
+                    parent_line_number=parent_line.line_number,
+                    child_line_number=line.line_number))
+        else:
+            continue
+    return quoted_lines, quote_prefix
 
 def to_lines(text: str) -> List[Line]:
     line_list = []
@@ -215,7 +242,10 @@ def is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -
     if not quoted_line:
         return False
     if child_line.line_number == quoted_line.child_line_number:
-        if child_line.text[len(quote_prefix):] != quoted_line.text:
+        if normalize_whitespace(
+                child_line.text[len(quote_prefix):]) != normalize_whitespace(quoted_line.text):
+            print('child_line.text: ' + child_line.text)
+            print('quote_line.text: ' + quoted_line.text)
             raise ValueError('Lines have matching line numbers, but text does not match')
         else:
             return True
