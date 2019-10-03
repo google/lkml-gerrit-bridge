@@ -33,6 +33,14 @@ class Gerrit(object):
     def __init__(self, rest_api: GerritRestAPI):
         self._rest_api = rest_api
 
+    def get_change(self, change_id: str):
+        return self._rest_api.get('/changes/{change_id}'.format(change_id=change_id))
+
+    def get_patch(self, change_id: str, revision_id: str):
+        return self._rest_api.get(
+                '/changes/{change_id}/revisions/{revision_id}/patch'.format(
+                        change_id=change_id, revision_id=revision_id))
+
     def get_review(self, change_id: str, revision_id: str):
         return self._rest_api.get(
                 '/changes/{change_id}/revisions/{revision_id}/review'.format(
@@ -49,8 +57,9 @@ class Gerrit(object):
 def main():
     rest = get_gerrit_rest_api('../.gitcookies')
     gerrit = Gerrit(rest)
-    review = gerrit.get_review(change_id='1132', revision_id='72')
-    print(review)
+    #review = gerrit.get_review(change_id='1132', revision_id='72')
+    #print(review)
+    print(gerrit.get_patch('1132', '72'))
     review = {
             'tag': 'post_lkml_comments',
             'message': 'Some comments from LKML',
