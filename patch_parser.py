@@ -22,9 +22,12 @@ class CoverLetter(object):
         self.comments = comments
 
 class Patch(object):
-    def __init__(self, text, comments):
+    def __init__(self, text, set_index, comments):
         self.text = text
+        self.set_index = set_index
         self.comments = comments
+        self.change_id = None
+        self.revision_id = None
 
 class Patchset(object):
     def __init__(self, cover_letter, patches):
@@ -311,6 +314,10 @@ def find_cover_letter_replies(email_thread: Message) -> List[Message]:
     _, cover_letter_replies = filter_patches_and_cover_letter_replies(email_thread)
     return cover_letter_replies
 
+def parse_set_index(email: Message) -> (int, int):
+    match = re.match(r'\[.+ (\d+)/(\d+)\] .+', email.subject)
+    return int(match.group(1)), int(match.group(2))
+
 def parse_comments(email_thread: Message) -> Patchset:
     replies = find_cover_letter_replies(email_thread)
     comments = []
@@ -324,8 +331,14 @@ def parse_comments(email_thread: Message) -> Patchset:
         comments = []
         for reply in patch.children:
             comments.extend(diff_reply(patch, reply))
-        patch_list.append(Patch(text=patch.content, comments=comments))
+        set_index, length = parse_set_index(patch)
+        assert length == len(patches)
+        patch_list.append(Patch(text=patch.content, set_index=set_index, comments=comments))
+        patch_list.sort(key=lambda x: x.set_index)
     return Patchset(cover_letter=cover_letter, patches=patch_list)
+
+def map_to_gerrit_changes(patchset: Patchset, first_change: (str, str), last_change: (str, str)) -> Patchset:
+    change_id, revision_id = last_change
 
 def main():
     email_thread = find_thread('PATCH v5 00/18')
