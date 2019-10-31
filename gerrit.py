@@ -55,22 +55,22 @@ class Gerrit(object):
                 data=review)
 
 def main():
-    rest = get_gerrit_rest_api('../.gitcookies')
+    rest = get_gerrit_rest_api('gerritcookies')
     gerrit = Gerrit(rest)
     #review = gerrit.get_review(change_id='1132', revision_id='72')
     #print(review)
     print(gerrit.get_patch('1132', '72'))
-    review = {
-            'tag': 'post_lkml_comments',
-            'message': 'Some comments from LKML',
-            'labels': {'Code-Review': 0},
-            'comments': {
-                    'MAINTAINERS': [{
-                            'line': 8609,
-                            'message': 'This is a comment.',
-                    }],
-            }
-    }
+    # review = {
+    #         'tag': 'post_lkml_comments',
+    #         'message': 'Some comments from LKML',
+    #         'labels': {'Code-Review': 0},
+    #         'comments': {
+    #                 'MAINTAINERS': [{
+    #                         'line': 8609,
+    #                         'message': 'This is a comment.',
+    #                 }],
+    #         }
+    # }
     # print(gerrit.set_review(change_id='1132', revision_id='72', review=review))
 
 if __name__ == '__main__':
