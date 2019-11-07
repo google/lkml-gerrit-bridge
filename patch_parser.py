@@ -38,8 +38,9 @@ class CoverLetter(object):
         self.comments = comments
 
 class Patch(object):
-    def __init__(self, text, set_index, comments):
+    def __init__(self, text, text_with_headers, set_index, comments):
         self.text = text
+        self.text_with_headers = text_with_headers
         self.set_index = set_index
         self.comments = comments
         self.change_id = None
@@ -349,7 +350,9 @@ def parse_comments(email_thread: Message) -> Patchset:
             comments.extend(diff_reply(patch, reply))
         set_index, length = parse_set_index(patch)
         assert length == len(patches)
-        patch_list.append(Patch(text=patch.content, set_index=set_index, comments=comments))
+        text = 'From: {from_}\nSubject: {subject}\n\n{content}'.format(
+                from_=patch.from_, subject=patch.subject, content=patch.content)
+        patch_list.append(Patch(text=patch.content, text_with_headers=text, set_index=set_index, comments=comments))
         patch_list.sort(key=lambda x: x.set_index)
     return Patchset(cover_letter=cover_letter, patches=patch_list)
 
@@ -623,7 +626,7 @@ def _parse_git_patch(raw_patch: str) -> RawLineToGerritLineMap:
         file_entries.append(file_entry)
         index = file_entry.chunks[-1].in_range[-1]
         file_entry = _parse_patch_file_entry(lines, index)
-    if lines[0] == '--':
+    if lines and (lines[0] == '--' or lines[0] == ''):
         return RawLineToGerritLineMap(patch_files=file_entries)
     elif lines:
         raise ValueError('Could not parse entire file: ' + str(lines))
@@ -642,12 +645,12 @@ def map_comments_to_gerrit(patchset: Patchset):
         map_patch_to_gerrit_change(patch)
 
 def main():
-    email_thread = find_thread('PATCH v5 00/18')
+    email_thread = find_thread('PATCH v17 00/19')
     patchset = parse_comments(email_thread)
     map_comments_to_gerrit(patchset)
     for patch in patchset.patches:
         for comment in patch.comments:
-            print('At ' + str(comment.file) + ':' + str(comment.line) + ':\n' + comment.message)
+            print('At ' + str(comment.raw_line) + ': ' + str(comment.file) + ':' + str(comment.line) + ':\n' + comment.message)
 
 if __name__ == '__main__':
     main()

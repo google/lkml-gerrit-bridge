@@ -46,9 +46,10 @@ class Thread(object):
         self.message_id = message_ids
 
 class Message(object):
-    def __init__(self, id, subject, in_reply_to, content):
+    def __init__(self, id, subject, from_, in_reply_to, content):
         self.id = id
         self.subject = subject
+        self.from_ = from_
         self.in_reply_to = in_reply_to
         self.content = content
         self.children = []
@@ -84,6 +85,12 @@ def look_up_label_id(service, label_name):
 def get_subject(raw_message) -> str:
     for header in raw_message['payload']['headers']:
         if header['name'].lower() == 'subject':
+            return header['value']
+    return ''
+
+def get_from(raw_message) -> str:
+    for header in raw_message['payload']['headers']:
+        if header['name'].lower() == 'from':
             return header['value']
     return ''
 
@@ -147,6 +154,7 @@ class GmailMessageIndex(object):
                                             .get('data', '').encode('ASCII')).decode('utf-8')
             message = Message(id=get_message_id(raw_message),
                               subject=get_subject(raw_message),
+                              from_=get_from(raw_message),
                               in_reply_to=get_in_reply_to(raw_message),
                               content=body)
             new_messages.append(message)

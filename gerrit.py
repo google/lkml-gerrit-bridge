@@ -18,9 +18,11 @@ import base64
 import pickle
 import os.path
 import re
+from git import GerritGit
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+from patch_parser import map_comments_to_gerrit, parse_comments, Patch, Patchset
 from pygerrit2 import GerritRestAPI
 from requests import PreparedRequest
 from requests.auth import AuthBase
@@ -28,11 +30,11 @@ from http.cookiejar import CookieJar, MozillaCookieJar
 from setup_gmail import Message
 from setup_gmail import find_thread
 
-def get_gerrit_rest_api(cookie_jar_path: str) -> GerritRestAPI:
+def get_gerrit_rest_api(cookie_jar_path: str, gerrit_url: str) -> GerritRestAPI:
     cookie_jar = MozillaCookieJar(cookie_jar_path)
     cookie_jar.load()
     auth = HTTPCookieAuth(cookie_jar)
-    rest = GerritRestAPI(url='https://kunit-review.googlesource.com', auth=auth)
+    rest = GerritRestAPI(url=gerrit_url, auth=auth)
     return rest
 
 class HTTPCookieAuth(AuthBase):
@@ -47,8 +49,11 @@ class Gerrit(object):
     def __init__(self, rest_api: GerritRestAPI):
         self._rest_api = rest_api
 
+    def new_change(self, change):
+        return self._rest_api.post('/changes/', data=change)
+
     def get_change(self, change_id: str):
-        return self._rest_api.get('/changes/{change_id}'.format(change_id=change_id))
+        return self._rest_api.get('/changes/{change_id}?o=CURRENT_REVISION'.format(change_id=change_id))
 
     def get_patch(self, change_id: str, revision_id: str):
         return self._rest_api.get(
@@ -68,12 +73,67 @@ class Gerrit(object):
                         revision_id=revision_id),
                 data=review)
 
+def find_and_label_revision_id(gerrit: Gerrit, patch: Patch):
+    change_info = gerrit.get_change(patch.change_id)
+    print(change_info)
+    revision_id = change_info['current_revision']
+    print(revision_id)
+    patch.revision_id = revision_id
+
+def find_and_label_all_revision_ids(gerrit: Gerrit, patchset: Patchset):
+    for patch in patchset.patches:
+        find_and_label_revision_id(gerrit, patch)
+
+def upload_comments_for_patch(gerrit: Gerrit, patch: Patch):
+    patch_comments = []
+    file_comments = {}
+    for comment in patch.comments:
+        if not comment.file:
+            patch_comments.append(comment.message)
+        else:
+            file_name = comment.file
+            if file_name not in file_comments:
+                file_comments[file_name] = []
+            comment_as_dict = {'message': comment.message}
+            if comment.line:
+                comment_as_dict['line'] = comment.line
+            file_comments[file_name].append(comment_as_dict)
+    review = {
+            'tag': 'post_lkml_comments',
+            'message': '\n\n'.join(patch_comments),
+            'labels': {'Code-Review': 0},
+            'comments': file_comments
+    }
+    print('review = ' + str(review))
+    print('set_review response = ' + str(gerrit.set_review(change_id=patch.change_id, revision_id=patch.revision_id, review=review)))
+
+def upload_all_comments(gerrit: Gerrit, patchset: Patchset):
+    map_comments_to_gerrit(patchset)
+    for patch in patchset.patches:
+        upload_comments_for_patch(gerrit, patch)
+
 def main():
-    rest = get_gerrit_rest_api('gerritcookies')
+    gerrit_url = 'https://linux-review.googlesource.com'
+    gob_url = 'http://linux.googlesource.com'
+    rest = get_gerrit_rest_api('gerritcookies', gerrit_url)
     gerrit = Gerrit(rest)
+    gerrit_git = GerritGit(git_dir='gerrit_git_dir',
+                           cookie_jar_path='gerritcookies',
+                           url=gob_url, project='linux/kernel/git/torvalds/linux', branch='master')
+    email_thread = find_thread('PATCH v12 00/18')
+    patchset = parse_comments(email_thread)
+    gerrit_git.apply_patchset_and_cleanup(patchset)
+    find_and_label_all_revision_ids(gerrit, patchset)
+    upload_all_comments(gerrit, patchset)
+    #change = {
+    #        'project': 'linux',
+    #        'branch': 'kernel/git/torvalds/linux/',
+    #        'subject': 'Testing...',
+    #}
+    #print(gerrit.new_change(change=change))
     #review = gerrit.get_review(change_id='1132', revision_id='72')
     #print(review)
-    print(gerrit.get_patch('1132', '72'))
+    #print(gerrit.get_patch('1132', '72'))
     # review = {
     #         'tag': 'post_lkml_comments',
     #         'message': 'Some comments from LKML',
