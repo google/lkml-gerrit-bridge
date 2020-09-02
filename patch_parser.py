@@ -570,7 +570,7 @@ def _parse_patch_file_entry(lines: List[str], index: int) -> PatchFileLineMap:
         raise ValueError('Expected chunks in file, but found: ' + lines[0])
     return PatchFileLineMap(name=file_name, chunks=chunks)
 
-def _parse_patch_header(lines: List[str]) -> Optional[int]:
+def _parse_patch_header(lines: List[str]) -> int:
     index = 0
 
     # Ignore everything before last '---'.
@@ -583,8 +583,7 @@ def _parse_patch_header(lines: List[str]) -> Optional[int]:
         lines.pop(0)
         index += 1
     else:
-        print('failed to find ---, instead found: ' + lines[0])
-        return None
+        raise ValueError('failed to find ---, instead found: ' + lines[0])
 
     # Drop high level summary before first file diff.
     while re.match(r'^\S+\s+\|\s+\d+ \+*-*$', lines[0]):
@@ -594,8 +593,7 @@ def _parse_patch_header(lines: List[str]) -> Optional[int]:
         lines.pop(0)
         index += 1
     else:
-        print('failed to find top level summary, instead found: ' + lines[0])
-        return None
+        raise ValueError('failed to find top level summary, instead found: ' + lines[0])
     while re.match(r'^create mode \d+ \S+$', lines[0]):
         lines.pop(0)
         index += 1
@@ -610,16 +608,12 @@ def _parse_patch_header(lines: List[str]) -> Optional[int]:
     if DIFF_LINE_MATCHER.match(lines[0]):
         return index
     else:
-        print('failed to find file diff, instead found: ' + lines[0])
-        return None
+        raise ValueError('failed to find file diff, instead found: ' + lines[0])
 
 def _parse_git_patch(raw_patch: str) -> RawLineToGerritLineMap:
     lines = raw_patch.split('\n')
     lines = [line.strip() for line in lines]
     index = _parse_patch_header(lines)
-    if not index:
-        print('failed to find header')
-        return None
     file_entries = []
     file_entry = _parse_patch_file_entry(lines, index)
     while file_entry:
