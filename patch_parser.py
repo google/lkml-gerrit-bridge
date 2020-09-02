@@ -525,7 +525,7 @@ def _parse_patch_file_super_chunk(lines: List[str], raw_index: int) -> List[Patc
         chunks.append(chunk)
     return chunks
 
-def _parse_patch_file_entry(lines: List[str], index: int) -> PatchFileLineMap:
+def _parse_patch_file_entry(lines: List[str], index: int) -> Optional[PatchFileLineMap]:
     match = DIFF_LINE_MATCHER.match(lines[0])
     if not match:
         print('failed to find file diff, instead found: ' + lines[0])
