@@ -259,8 +259,6 @@ def filter_definitely_comments(child_lines: List[Line]) -> List[Line]:
     return comments
 
 def is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -> bool:
-    if not quoted_line:
-        return False
     if child_line.line_number == quoted_line.child_line_number:
         if normalize_whitespace(
                 child_line.text[len(quote_prefix):]) != normalize_whitespace(quoted_line.text):
@@ -280,7 +278,7 @@ def filter_non_quoted_lines(all_child_lines: List[Line],
     quoted_line = next(quoted_lines_iter, None)
     last_parent_line_number = -1
     for child_line in all_child_lines:
-        if is_same_line(child_line, quoted_line, quote_prefix):
+        if quoted_line and is_same_line(child_line, quoted_line, quote_prefix):
             last_parent_line_number = quoted_line.parent_line_number
             quoted_line = next(quoted_lines_iter, None)
         else:
@@ -333,6 +331,8 @@ def find_cover_letter_replies(email_thread: Message) -> List[Message]:
 
 def parse_set_index(email: Message) -> Tuple[int, int]:
     match = re.match(r'\[.+ (\d+)/(\d+)\] .+', email.subject)
+    if match is None:
+      raise ValueError(f'Missing patch index in subject: {email.subject}')
     return int(match.group(1)), int(match.group(2))
 
 def parse_comments(email_thread: Message) -> Patchset:
@@ -420,7 +420,7 @@ DIFF_LINE_MATCHER = re.compile(r'^diff --git a/\S+ b/(\S+)$')
 
 def _does_match_end_of_super_chunk(lines: List[str]) -> bool:
     line = lines[0]
-    return SKIP_LINE_MATCHER.match(line) or DIFF_LINE_MATCHER.match(line) or (line == '--') or (len(lines) <= 1)
+    return (line == '--') or (len(lines) <= 1) or bool(SKIP_LINE_MATCHER.match(line) or DIFF_LINE_MATCHER.match(line))
 
 def _parse_patch_file_unchanged_chunk(
         lines: List[str],

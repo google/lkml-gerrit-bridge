@@ -58,9 +58,14 @@ GERRIT_CHANGE_ID_MATCHER = re.compile(r'^https://[\w/+.-]+\+/(\d+)$')
 def _parse_gerrit_patch_push(gerrit_result: str) -> str:
     print(gerrit_result)
     match = GERRIT_PUSH_MATCHER.search(gerrit_result)
+    if match is None:
+      raise ValueError(f'Could not find change url from gerrit output: {gerrit_result}')
     change_url = match.group(1)
     print('change_url = ' + change_url)
+
     match = GERRIT_CHANGE_ID_MATCHER.match(change_url)
+    if match is None:
+      raise ValueError(f'Could not extract change id from gerrit output: {gerrit_result}')
     change_id = match.group(1)
     print('change_id = ' + change_id)
     return change_id
