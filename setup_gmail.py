@@ -17,6 +17,7 @@ import base64
 import pickle
 import os.path
 import re
+from typing import Optional
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -38,7 +39,7 @@ class MessageKey(object):
 
 class PatchsetFetcher(object):
     def fetch_patchset(self, key: MessageKey) -> Patchset:
-        pass
+        raise NotImplementedError()
 
 class Thread(object):
     def __init__(self, key: MessageKey, message_ids=[]):
@@ -100,7 +101,7 @@ def get_message_id(raw_message) -> str:
             return header['value']
     return ''
 
-def get_in_reply_to(raw_message) -> str:
+def get_in_reply_to(raw_message) -> Optional[str]:
     for header in raw_message['payload']['headers']:
         if header['name'].lower() == 'in-reply-to':
             return header['value']
@@ -190,7 +191,7 @@ def get_service():
 
 class GmailPatchsetFetcher(object):
     def fetch_patchset(self, key: MessageKey) -> Patchset:
-        service = self._get_service()
+        raise NotImplementedError()
 
     def _get_service(self):
         creds = get_credentials_or_setup()
