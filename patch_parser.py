@@ -152,7 +152,7 @@ def get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
 
 def build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote_prefix: str) -> Dict[str, List[Line]]:
     parent_line_set = set([line.text for line in parent_lines])
-    traversal_map = {}
+    traversal_map : Dict[str, List[Line]] = {}
     for line in child_lines:
         line_text = line.text
         if not line_text.startswith(quote_prefix):
@@ -288,7 +288,7 @@ def filter_non_quoted_lines(all_child_lines: List[Line],
     return comment_lines
 
 def merge_comment_lines(comment_lines: List[CommentLine]) -> List[Comment]:
-    comment_map = {}
+    comment_map : Dict[int, List[CommentLine]] = {}
     comment_lines.sort(key=lambda x: x.child_line_number)
     for line in comment_lines:
         if line.last_parent_line_number not in comment_map:
