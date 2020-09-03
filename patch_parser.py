@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from __future__ import print_function
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 import base64
 import pickle
 import os.path
@@ -133,26 +133,26 @@ class TrieNode(object):
 def get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
     trie = Trie()
     for line in parent_lines:
-        line = list(line.text)
-        line.reverse()
-        trie.insert(line)
+        text = list(line.text)
+        text.reverse()
+        trie.insert(text)
     prefix_count_map = {}
     for line in child_lines:
-        line = list(line.text)
-        line.reverse()
-        prefix = trie.diff_best_match(line)
+        text = list(line.text)
+        text.reverse()
+        prefix = trie.diff_best_match(text)
         prefix.reverse()
-        prefix = ''.join(prefix)
-        if prefix not in prefix_count_map:
-            prefix_count_map[prefix] = 1
+        prefix_str = ''.join(prefix)
+        if prefix_str not in prefix_count_map:
+            prefix_count_map[prefix_str] = 1
         else:
-            prefix_count_map[prefix] += 1
-    prefix, count = max(prefix_count_map.items(), key=lambda x: x[1])
-    return prefix
+            prefix_count_map[prefix_str] += 1
+    prefix_str, count = max(prefix_count_map.items(), key=lambda x: x[1])
+    return prefix_str
 
 def build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote_prefix: str) -> Dict[str, List[Line]]:
     parent_line_set = set([line.text for line in parent_lines])
-    traversal_map = {}
+    traversal_map : Dict[str, List[Line]] = {}
     for line in child_lines:
         line_text = line.text
         if not line_text.startswith(quote_prefix):
@@ -209,7 +209,7 @@ def find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
 
 def find_quoted_lines_max_traversal_method(
         parent_lines: List[Line],
-        child_lines: List[Line]) -> (List[QuotedLine], str):
+        child_lines: List[Line]) -> Tuple[List[QuotedLine], str]:
     quote_prefix = get_quote_prefix(parent_lines, child_lines)
     traversal_map = build_traversal_map(parent_lines, child_lines, quote_prefix)
     return find_maximal_map_traversal(traversal_map, parent_lines, []), quote_prefix
@@ -220,7 +220,7 @@ def normalize_whitespace(string: str) -> str:
     return NORMALIZE_WHITESPACE_MATCHER.sub(' ', string)
 
 def find_quoted_lines(parent_lines: List[Line],
-                      child_lines: List[Line]) -> (List[QuotedLine], str):
+                      child_lines: List[Line]) -> Tuple[List[QuotedLine], str]:
     quote_prefix = get_quote_prefix(parent_lines, child_lines)
     parent_line_set = {}
     for line in parent_lines:
@@ -258,9 +258,7 @@ def filter_definitely_comments(child_lines: List[Line]) -> List[Line]:
         comments.append(line)
     return comments
 
-def is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -> List[CommentLine]:
-    if not quoted_line:
-        return False
+def is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -> bool:
     if child_line.line_number == quoted_line.child_line_number:
         if normalize_whitespace(
                 child_line.text[len(quote_prefix):]) != normalize_whitespace(quoted_line.text):
@@ -280,7 +278,7 @@ def filter_non_quoted_lines(all_child_lines: List[Line],
     quoted_line = next(quoted_lines_iter, None)
     last_parent_line_number = -1
     for child_line in all_child_lines:
-        if is_same_line(child_line, quoted_line, quote_prefix):
+        if quoted_line and is_same_line(child_line, quoted_line, quote_prefix):
             last_parent_line_number = quoted_line.parent_line_number
             quoted_line = next(quoted_lines_iter, None)
         else:
@@ -290,7 +288,7 @@ def filter_non_quoted_lines(all_child_lines: List[Line],
     return comment_lines
 
 def merge_comment_lines(comment_lines: List[CommentLine]) -> List[Comment]:
-    comment_map = {}
+    comment_map : Dict[int, List[CommentLine]] = {}
     comment_lines.sort(key=lambda x: x.child_line_number)
     for line in comment_lines:
         if line.last_parent_line_number not in comment_map:
@@ -313,7 +311,7 @@ def diff_reply(parent: Message, child: Message) -> List[Comment]:
     child_lines = to_lines(child.content)
     return find_comments(parent_lines, child_lines)
 
-def filter_patches_and_cover_letter_replies(email_thread: Message) -> (List[Message], List[Message]):
+def filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List[Message], List[Message]]:
     patches = []
     cover_letter_replies = []
     for message in email_thread.children:
@@ -331,8 +329,10 @@ def find_cover_letter_replies(email_thread: Message) -> List[Message]:
     _, cover_letter_replies = filter_patches_and_cover_letter_replies(email_thread)
     return cover_letter_replies
 
-def parse_set_index(email: Message) -> (int, int):
+def parse_set_index(email: Message) -> Tuple[int, int]:
     match = re.match(r'\[.+ (\d+)/(\d+)\] .+', email.subject)
+    if match is None:
+      raise ValueError(f'Missing patch index in subject: {email.subject}')
     return int(match.group(1)), int(match.group(2))
 
 def parse_comments(email_thread: Message) -> Patchset:
@@ -363,7 +363,7 @@ def associate_comment_to_file(comment: Comment) -> None:
     pass
 
 class PatchFileChunkLineMap(object):
-    def __init__(self, in_range: (int, int), side: str, offset: int):
+    def __init__(self, in_range: Tuple[int, int], side: str, offset: int):
         self.in_range = in_range
         self.side = side
         self.offset = offset
@@ -371,7 +371,7 @@ class PatchFileChunkLineMap(object):
     def __contains__(self, raw_line):
         return self.in_range[0] <= raw_line and raw_line <= self.in_range[1]
 
-    def map(self, raw_line: int) -> (str, int):
+    def map(self, raw_line: int) -> Tuple[str, int]:
         if raw_line in self:
             return self.side, raw_line + self.offset
         else:
@@ -387,7 +387,7 @@ class PatchFileLineMap(object):
         print('Checking if ' + str(self.in_range[0]) + ' <= ' + str(raw_line) + ' <= ' + str(self.in_range[1]))
         return self.in_range[0] <= raw_line and raw_line <= self.in_range[1]
 
-    def map(self, raw_line: int) -> (str, int):
+    def map(self, raw_line: int) -> Tuple[str, int]:
         for chunk in self.chunks:
             if raw_line in chunk:
                 side, line = chunk.map(raw_line)
@@ -406,7 +406,7 @@ class RawLineToGerritLineMap(object):
                 return True
         return False
 
-    def map(self, raw_line: int) -> (str, int):
+    def map(self, raw_line: int) -> Tuple[str, int]:
         for patch_file in self.patch_files:
             print('Checking: ' + patch_file.name)
             if raw_line in patch_file:
@@ -420,13 +420,13 @@ DIFF_LINE_MATCHER = re.compile(r'^diff --git a/\S+ b/(\S+)$')
 
 def _does_match_end_of_super_chunk(lines: List[str]) -> bool:
     line = lines[0]
-    return SKIP_LINE_MATCHER.match(line) or DIFF_LINE_MATCHER.match(line) or (line == '--') or (len(lines) <= 1)
+    return (line == '--') or (len(lines) <= 1) or bool(SKIP_LINE_MATCHER.match(line) or DIFF_LINE_MATCHER.match(line))
 
 def _parse_patch_file_unchanged_chunk(
         lines: List[str],
         raw_index: int,
         gerrit_orig_line: int,
-        gerrit_new_line: int) -> (int, int, int, PatchFileChunkLineMap):
+        gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
     in_start = raw_index
     while (not _does_match_end_of_super_chunk(lines)) and ((not lines[0]) or (lines[0] and lines[0][0] != '+' and lines[0][0] != '-')):
         print('dropping line: ' + lines[0])
@@ -445,7 +445,7 @@ def _parse_patch_file_added_chunk(
         lines: List[str],
         raw_index: int,
         gerrit_orig_line: int,
-        gerrit_new_line: int) -> (int, int, int, PatchFileChunkLineMap):
+        gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
     in_start = raw_index
     print('First char - 1: ' + lines[0][0])
     while lines[0] and lines[0][0] == '+':
@@ -464,7 +464,7 @@ def _parse_patch_file_removed_chunk(
         lines: List[str],
         raw_index: int,
         gerrit_orig_line: int,
-        gerrit_new_line: int) -> (int, int, int, PatchFileChunkLineMap):
+        gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
     in_start = raw_index
     while lines[0] and lines[0][0] == '-':
         lines.pop(0)
@@ -481,7 +481,7 @@ def _parse_patch_file_removed_chunk(
 def _parse_patch_file_chunk(lines: List[str],
                             raw_index: int,
                             gerrit_orig_line: int,
-                            gerrit_new_line: int) -> (int, int, int, PatchFileChunkLineMap):
+                            gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
     line = lines[0]
     start_line_len = len(lines)
     if _does_match_end_of_super_chunk(lines):
@@ -506,7 +506,7 @@ def _parse_patch_file_chunk(lines: List[str],
 def _parse_patch_file_super_chunk(lines: List[str], raw_index: int) -> List[PatchFileChunkLineMap]:
     match = SKIP_LINE_MATCHER.match(lines[0])
     if not match:
-        return None
+        return []
     gerrit_orig_line = int(match.group(1))
     gerrit_new_line = int(match.group(3))
     print('old starts at: ' + str(gerrit_orig_line) + ', new starts at: ' + str(gerrit_new_line))
@@ -525,7 +525,7 @@ def _parse_patch_file_super_chunk(lines: List[str], raw_index: int) -> List[Patc
         chunks.append(chunk)
     return chunks
 
-def _parse_patch_file_entry(lines: List[str], index: int) -> PatchFileLineMap:
+def _parse_patch_file_entry(lines: List[str], index: int) -> Optional[PatchFileLineMap]:
     match = DIFF_LINE_MATCHER.match(lines[0])
     if not match:
         print('failed to find file diff, instead found: ' + lines[0])
@@ -583,8 +583,7 @@ def _parse_patch_header(lines: List[str]) -> int:
         lines.pop(0)
         index += 1
     else:
-        print('failed to find ---, instead found: ' + lines[0])
-        return None
+        raise ValueError('failed to find ---, instead found: ' + lines[0])
 
     # Drop high level summary before first file diff.
     while re.match(r'^\S+\s+\|\s+\d+ \+*-*$', lines[0]):
@@ -594,8 +593,7 @@ def _parse_patch_header(lines: List[str]) -> int:
         lines.pop(0)
         index += 1
     else:
-        print('failed to find top level summary, instead found: ' + lines[0])
-        return None
+        raise ValueError('failed to find top level summary, instead found: ' + lines[0])
     while re.match(r'^create mode \d+ \S+$', lines[0]):
         lines.pop(0)
         index += 1
@@ -610,16 +608,12 @@ def _parse_patch_header(lines: List[str]) -> int:
     if DIFF_LINE_MATCHER.match(lines[0]):
         return index
     else:
-        print('failed to find file diff, instead found: ' + lines[0])
-        return None
+        raise ValueError('failed to find file diff, instead found: ' + lines[0])
 
 def _parse_git_patch(raw_patch: str) -> RawLineToGerritLineMap:
     lines = raw_patch.split('\n')
     lines = [line.strip() for line in lines]
     index = _parse_patch_header(lines)
-    if not index:
-        print('failed to find header')
-        return None
     file_entries = []
     file_entry = _parse_patch_file_entry(lines, index)
     while file_entry:

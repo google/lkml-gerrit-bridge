@@ -85,8 +85,10 @@ def find_and_label_all_revision_ids(gerrit: Gerrit, patchset: Patchset):
         find_and_label_revision_id(gerrit, patch)
 
 def upload_comments_for_patch(gerrit: Gerrit, patch: Patch):
-    patch_comments = []
-    file_comments = {}
+    Comments = List[Dict[str,str]]
+
+    patch_comments : List[str] = []
+    file_comments : Dict[str,Comments] = {}
     for comment in patch.comments:
         if not comment.file:
             patch_comments.append(comment.message)
