@@ -16,22 +16,19 @@ import email
 from setup_gmail import Message
 
 def generate_email_from_file(file: str):
-    raw_email = open(file, "r")
-    compiled_email = email.message_from_string(raw_email.read())
-    raw_email.close()
-    return email_to_message(compiled_email)
+    with open(file, "r") as raw_email:
+        compiled_email = email.message_from_string(raw_email.read())
+        return _email_to_message(compiled_email)
     
-def email_to_message(compiled_email) -> Message:
+def _email_to_message(compiled_email) -> Message:
     content = []
     if compiled_email.is_multipart():
         for payload in compiled_email.get_payload():
             content.append(payload.get_payload())
     else:
         content = compiled_email.get_payload()
-    return Message(compiled_email['Message-Id'], compiled_email['subject'], compiled_email['from'], compiled_email['In-Reply-To'], content)
-
-def main():
-    generate_email_from_patches("test_data/patch6.txt")
-    
-if __name__ == "__main__":
-    main()
+    return Message(compiled_email['Message-Id'],
+                   compiled_email['subject'],
+                   compiled_email['from'],
+                   compiled_email['In-Reply-To'],
+                   content)
