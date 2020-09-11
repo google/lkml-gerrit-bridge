@@ -314,7 +314,7 @@ def diff_reply(parent: Message, child: Message) -> List[Comment]:
 def filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List[Message], List[Message]]:
     patches = []
     cover_letter_replies = []
-    if (not email_thread.in_reply_to):
+    if (not email_thread.in_reply_to and parse_set_index(email_thread)[0] == 1):
         patches.append(email_thread)
     for message in email_thread.children:
         if re.match(r'\[.+ \d+/\d+\] .+', message.subject):
