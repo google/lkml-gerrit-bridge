@@ -29,6 +29,7 @@ from requests.auth import AuthBase
 from http.cookiejar import CookieJar, MozillaCookieJar
 from setup_gmail import Message
 from setup_gmail import find_thread
+from archive_converter import generate_email_from_file
 
 def get_gerrit_rest_api(cookie_jar_path: str, gerrit_url: str) -> GerritRestAPI:
     cookie_jar = MozillaCookieJar(cookie_jar_path)
@@ -122,7 +123,7 @@ def main():
     gerrit_git = GerritGit(git_dir='gerrit_git_dir',
                            cookie_jar_path='gerritcookies',
                            url=gob_url, project='linux/kernel/git/torvalds/linux', branch='master')
-    email_thread = find_thread('PATCH v12 00/18')
+    email_thread = generate_email_from_file("test_data/patch6.txt")
     patchset = parse_comments(email_thread)
     gerrit_git.apply_patchset_and_cleanup(patchset)
     find_and_label_all_revision_ids(gerrit, patchset)

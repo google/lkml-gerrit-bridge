@@ -314,6 +314,8 @@ def diff_reply(parent: Message, child: Message) -> List[Comment]:
 def filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List[Message], List[Message]]:
     patches = []
     cover_letter_replies = []
+    if (not email_thread.in_reply_to):
+        patches.append(email_thread)
     for message in email_thread.children:
         if re.match(r'\[.+ \d+/\d+\] .+', message.subject):
             patches.append(message)
@@ -348,10 +350,13 @@ def parse_comments(email_thread: Message) -> Patchset:
         comments = []
         for reply in patch.children:
             comments.extend(diff_reply(patch, reply))
-        set_index, length = parse_set_index(patch)
-        assert length == len(patches)
+        if (len(patches) == 1 and not email_thread.in_reply_to):
+            set_index = 0
+        else:
+            set_index, length = parse_set_index(patch)
+            assert length == len(patches)
         text = 'From: {from_}\nSubject: {subject}\n\n{content}'.format(
-                from_=patch.from_, subject=patch.subject, content=patch.content)
+            from_=patch.from_, subject=patch.subject, content=patch.content)
         patch_list.append(Patch(text=patch.content, text_with_headers=text, set_index=set_index, comments=comments))
         patch_list.sort(key=lambda x: x.set_index)
     return Patchset(cover_letter=cover_letter, patches=patch_list)
