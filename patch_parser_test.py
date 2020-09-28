@@ -1,11 +1,16 @@
 import unittest
 from patch_parser import parse_comments
-from archive_converter import find_thread, generate_email_from_file
+from archive_converter import ArchiveMessageIndex, generate_email_from_file
+from message_dao import MessageDao
 
 class PatchParserTest(unittest.TestCase):
 
     def test_parse_comments_for_single_email_thread(self):
-        patchset = parse_comments(find_thread('PATCH v2 1/2'))
+        archive_index = ArchiveMessageIndex(MessageDao())
+        archive_index.update('test_data')
+        patchset = parse_comments(
+            archive_index.find(
+                '<20200827144112.v2.1.I6981f9a9f0c12e60f8038f3b574184f8ffc1b9b5@changeid>'))
 
         self.assertTrue(len(patchset.patches) > 0)
         first_patch = patchset.patches[0]
@@ -15,7 +20,9 @@ class PatchParserTest(unittest.TestCase):
         self.assertEqual(first_patch.comments, [])
 
     def test_parse_comments_for_multi_email_thread_with_cover_letter(self):
-        patchset = parse_comments(find_thread('PATCH v2 0/4'))
+        archive_index = ArchiveMessageIndex(MessageDao())
+        archive_index.update('test_data')
+        patchset = parse_comments(archive_index.find('<20200831110450.30188-1-boyan.karatotev@arm.com>'))
 
         self.assertEqual(len(patchset.patches), 4)
         first_patch = patchset.patches[0]
