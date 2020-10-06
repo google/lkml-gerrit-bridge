@@ -14,7 +14,9 @@
 
 import email
 import os
-from typing import List, Dict
+import subprocess
+
+from typing import List, Dict, Optional
 from setup_gmail import Message
 from message_dao import MessageDao
 
@@ -33,7 +35,7 @@ class ArchiveMessageIndex(object):
             if not filename.endswith(".txt"):
                 continue
             email = generate_email_from_file(os.path.join(data_dir, filename))
-            if not self._message_dao.get(email.id):
+            if email and not self._message_dao.get(email.id):
                 new_messages.append(email)
         self._add_messages_to_index(new_messages)
         return new_messages
@@ -70,10 +72,15 @@ class ArchiveMessageIndex(object):
             parent.children.append(message)
             self._message_dao.store(parent)
 
-def generate_email_from_file(file: str):
+def generate_email_from_file(file: str) -> Optional[Message]:
     with open(file, "r") as raw_email:
-        compiled_email = email.message_from_string(raw_email.read())
-        return _email_to_message(compiled_email)
+        try:
+            compiled_email = email.message_from_string(raw_email.read())
+            return _email_to_message(compiled_email)
+        except Exception as e:
+            # TODO: Log exception
+            print(e)
+            return None
 
 def _email_to_message(compiled_email) -> Message:
     content = []
