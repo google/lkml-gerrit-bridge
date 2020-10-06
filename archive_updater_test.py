@@ -3,7 +3,7 @@ import subprocess
 import os
 import tempfile
 import shutil
-from archive_updater import fill_message_directory, MAX_NUMBER_OF_RECENT_COMMITS
+from archive_updater import fill_message_directory
 from unittest import mock
 
 class ArchiveUpdaterFillMessageDirectoryTest(unittest.TestCase):
@@ -43,13 +43,14 @@ class ArchiveUpdaterFillMessageDirectoryTest(unittest.TestCase):
     @mock.patch.object(subprocess, 'check_call')
     def test_fill_message_directory_fail_to_log(self, mock_check_call, mock_check_output):
         mock_check_output.side_effect = subprocess.CalledProcessError(returncode=1,
-                                                                    cmd=['git', '-C', 'archive_path',
-                                                                         'log', '--format=format:%H',
-                                                                         '-n',str(MAX_NUMBER_OF_RECENT_COMMITS)],
+                                                                    cmd=['git', '-C',
+                                                                         'archive_path', 'log',
+                                                                         'last_used_commit_hash..',
+                                                                         '--format=format:%H'],
                                                                     stderr=b'Failed to log')
 
         with self.assertRaises(subprocess.CalledProcessError):
-            fill_message_directory('archive_path', self.tmp_dir, '')
+            fill_message_directory('archive_path', self.tmp_dir, 'last_used_commit_hash')
 
         self.assertEqual(len(os.listdir(self.tmp_dir)), 0)
 
@@ -58,10 +59,10 @@ class ArchiveUpdaterFillMessageDirectoryTest(unittest.TestCase):
     def test_fill_message_directory_no_hashes_available(self, mock_check_call, mock_check_output):
         mock_check_output.return_value = b''
 
-        with self.assertRaisesRegex(Exception, 'no commits'):
-            fill_message_directory('', self.tmp_dir, '')
+        last_used_hash = fill_message_directory('archive_path', self.tmp_dir, 'last_used_hash')
 
         self.assertEqual(len(os.listdir(self.tmp_dir)), 0)
+        self.assertEqual(last_used_hash, 'last_used_hash')
 
 
 if __name__ == '__main__':

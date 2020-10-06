@@ -53,6 +53,7 @@ class Message(object):
         self.from_ = from_
         self.in_reply_to = in_reply_to
         self.content = content
+        self.change_id = None
         self.children = []
 
     def get_key(self):
@@ -61,7 +62,7 @@ class Message(object):
             return match.group(1)
         else:
             return None
-        
+
     def is_patch(self) -> bool:
         if re.match(r'\[.+ (\d+)/(\d+)\] .+', self.subject):
             return True

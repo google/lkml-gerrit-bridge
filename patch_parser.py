@@ -38,7 +38,8 @@ class CoverLetter(object):
         self.comments = comments
 
 class Patch(object):
-    def __init__(self, text, text_with_headers, set_index, comments):
+    def __init__(self, message_id, text, text_with_headers, set_index, comments):
+        self.message_id = message_id
         self.text = text
         self.text_with_headers = text_with_headers
         self.set_index = set_index
@@ -357,7 +358,7 @@ def parse_comments(email_thread: Message) -> Patchset:
             assert length == len(patches)
         text = 'From: {from_}\nSubject: {subject}\n\n{content}'.format(
             from_=patch.from_, subject=patch.subject, content=patch.content)
-        patch_list.append(Patch(text=patch.content, text_with_headers=text, set_index=set_index, comments=comments))
+        patch_list.append(Patch(message_id = patch.id, text=patch.content, text_with_headers=text, set_index=set_index, comments=comments))
         patch_list.sort(key=lambda x: x.set_index)
     return Patchset(cover_letter=cover_letter, patches=patch_list)
 
