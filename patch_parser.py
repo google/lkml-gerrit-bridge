@@ -317,7 +317,7 @@ def filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List
     if (not email_thread.in_reply_to and parse_set_index(email_thread)[0] == 1):
         patches.append(email_thread)
     for message in email_thread.children:
-        if re.match(r'\[.+ \d+/\d+\] .+', message.subject):
+        if message.is_patch():
             patches.append(message)
         else:
             cover_letter_replies.append(message)
