@@ -74,7 +74,7 @@ class Gerrit(object):
                         revision_id=revision_id),
                 data=review)
 
-def find_and_label_revision_id(gerrit: Gerrit, patch: Patch):
+def _find_and_label_revision_id(gerrit: Gerrit, patch: Patch):
     change_info = gerrit.get_change(patch.change_id)
     logging.info('Change info: %s', change_info)
     revision_id = change_info['current_revision']
@@ -83,7 +83,7 @@ def find_and_label_revision_id(gerrit: Gerrit, patch: Patch):
 
 def find_and_label_all_revision_ids(gerrit: Gerrit, patchset: Patchset):
     for patch in patchset.patches:
-        find_and_label_revision_id(gerrit, patch)
+        _find_and_label_revision_id(gerrit, patch)
 
 def upload_comments_for_patch(gerrit: Gerrit, patch: Patch):
     Comments = List[Dict[str,str]]

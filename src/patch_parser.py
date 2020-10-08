@@ -79,9 +79,6 @@ class ProbablyQuoted(Line):
     def score(self) -> float:
         return 0.5
 
-def line_iter(string: str):
-    return iter(string.splitlines())
-
 class Trie(object):
     def __init__(self):
         self._children = {}
@@ -131,7 +128,7 @@ class TrieNode(object):
         node = self._children[letter]
         return node.diff_best_match(string)
 
-def get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
+def _get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
     trie = Trie()
     for line in parent_lines:
         text = list(line.text)
@@ -151,7 +148,7 @@ def get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
     prefix_str, count = max(prefix_count_map.items(), key=lambda x: x[1])
     return prefix_str
 
-def build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote_prefix: str) -> Dict[str, List[Line]]:
+def _build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote_prefix: str) -> Dict[str, List[Line]]:
     parent_line_set = set([line.text for line in parent_lines])
     traversal_map : Dict[str, List[Line]] = {}
     for line in child_lines:
@@ -171,7 +168,7 @@ def build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote
             continue
     return traversal_map
 
-def find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
+def _find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
                                parent_lines: List[Line],
                                lines_so_far: List[QuotedLine]) -> List[QuotedLine]:
     logging.info('len(parent_lines) = %d', len(parent_lines))
@@ -197,7 +194,7 @@ def find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
         #
         # Possibly not necessary, but I suspect that there is a Thompson VM
         # style algorithmic improvement here.
-        possible_traversals = [find_maximal_map_traversal(
+        possible_traversals = [_find_maximal_map_traversal(
                 traversal_map,
                 parent_lines,
                 lines_so_far + [
@@ -208,30 +205,24 @@ def find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
         return max(possible_traversals, key=lambda x: len(x))
     return lines_so_far
 
-def find_quoted_lines_max_traversal_method(
-        parent_lines: List[Line],
-        child_lines: List[Line]) -> Tuple[List[QuotedLine], str]:
-    quote_prefix = get_quote_prefix(parent_lines, child_lines)
-    traversal_map = build_traversal_map(parent_lines, child_lines, quote_prefix)
-    return find_maximal_map_traversal(traversal_map, parent_lines, []), quote_prefix
 
 NORMALIZE_WHITESPACE_MATCHER = re.compile(r'\s+')
 
-def normalize_whitespace(string: str) -> str:
+def _normalize_whitespace(string: str) -> str:
     return NORMALIZE_WHITESPACE_MATCHER.sub(' ', string)
 
-def find_quoted_lines(parent_lines: List[Line],
+def _find_quoted_lines(parent_lines: List[Line],
                       child_lines: List[Line]) -> Tuple[List[QuotedLine], str]:
-    quote_prefix = get_quote_prefix(parent_lines, child_lines)
+    quote_prefix = _get_quote_prefix(parent_lines, child_lines)
     parent_line_set = {}
     for line in parent_lines:
-        parent_line_set[normalize_whitespace(line.text)] = line
+        parent_line_set[_normalize_whitespace(line.text)] = line
     quoted_lines = []
     for line in child_lines:
         line_text = line.text
         if not line_text.startswith(quote_prefix):
             continue
-        line_text = normalize_whitespace(line_text[len(quote_prefix):])
+        line_text = _normalize_whitespace(line_text[len(quote_prefix):])
         if line_text in parent_line_set:
             parent_line = parent_line_set[line_text]
             quoted_lines.append(QuotedLine(
@@ -242,7 +233,7 @@ def find_quoted_lines(parent_lines: List[Line],
             continue
     return quoted_lines, quote_prefix
 
-def to_lines(text: str) -> List[Line]:
+def _to_lines(text: str) -> List[Line]:
     line_list = []
     line_number = 0
     for line in text.splitlines():
@@ -250,7 +241,7 @@ def to_lines(text: str) -> List[Line]:
         line_number += 1
     return line_list
 
-def filter_definitely_comments(child_lines: List[Line]) -> List[Line]:
+def _filter_definitely_comments(child_lines: List[Line]) -> List[Line]:
     child_lines = child_lines[:]
     quote_matcher = re.compile(r'\s*>.*')
     comments = []
@@ -259,10 +250,10 @@ def filter_definitely_comments(child_lines: List[Line]) -> List[Line]:
         comments.append(line)
     return comments
 
-def is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -> bool:
+def _is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -> bool:
     if child_line.line_number == quoted_line.child_line_number:
-        if normalize_whitespace(
-                child_line.text[len(quote_prefix):]) != normalize_whitespace(quoted_line.text):
+        if _normalize_whitespace(
+                child_line.text[len(quote_prefix):]) != _normalize_whitespace(quoted_line.text):
             logging.info('child_line.text: %s', child_line.text)
             logging.info('quote_line.text: %s', quoted_line.text)
             raise ValueError('Lines have matching line numbers, but text does not match')
@@ -271,7 +262,7 @@ def is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -
     else:
         return False
 
-def filter_non_quoted_lines(all_child_lines: List[Line],
+def _filter_non_quoted_lines(all_child_lines: List[Line],
                             quoted_lines: List[QuotedLine],
                             quote_prefix: str) -> List[CommentLine]:
     comment_lines = []
@@ -279,7 +270,7 @@ def filter_non_quoted_lines(all_child_lines: List[Line],
     quoted_line = next(quoted_lines_iter, None)
     last_parent_line_number = -1
     for child_line in all_child_lines:
-        if quoted_line and is_same_line(child_line, quoted_line, quote_prefix):
+        if quoted_line and _is_same_line(child_line, quoted_line, quote_prefix):
             last_parent_line_number = quoted_line.parent_line_number
             quoted_line = next(quoted_lines_iter, None)
         else:
@@ -288,7 +279,7 @@ def filter_non_quoted_lines(all_child_lines: List[Line],
                                              text=child_line.text))
     return comment_lines
 
-def merge_comment_lines(comment_lines: List[CommentLine]) -> List[Comment]:
+def _merge_comment_lines(comment_lines: List[CommentLine]) -> List[Comment]:
     comment_map : Dict[int, List[CommentLine]] = {}
     comment_lines.sort(key=lambda x: x.child_line_number)
     for line in comment_lines:
@@ -301,19 +292,19 @@ def merge_comment_lines(comment_lines: List[CommentLine]) -> List[Comment]:
         comment_list.append(Comment(raw_line=last_parent_line_number, message=message))
     return comment_list
 
-def find_comments(parent_lines: List[Line], all_child_lines: List[Line]) -> List[Comment]:
-    probably_not_comment_lines = filter_definitely_comments(all_child_lines)
-    quoted_lines, quote_prefix = find_quoted_lines(parent_lines, probably_not_comment_lines)
-    comment_lines = filter_non_quoted_lines(all_child_lines, quoted_lines, quote_prefix)
-    return merge_comment_lines(comment_lines)
+def _find_comments(parent_lines: List[Line], all_child_lines: List[Line]) -> List[Comment]:
+    probably_not_comment_lines = _filter_definitely_comments(all_child_lines)
+    quoted_lines, quote_prefix = _find_quoted_lines(parent_lines, probably_not_comment_lines)
+    comment_lines = _filter_non_quoted_lines(all_child_lines, quoted_lines, quote_prefix)
+    return _merge_comment_lines(comment_lines)
 
-def diff_reply(parent: Message, child: Message) -> List[Comment]:
-    #TODO: to_lines only works on str, but Message.content is also sometimes a List
-    parent_lines = to_lines(parent.content)
-    child_lines = to_lines(child.content)
-    return find_comments(parent_lines, child_lines)
+def _diff_reply(parent: Message, child: Message) -> List[Comment]:
+    #TODO: _to_lines only works on str, but Message.content is also sometimes a List
+    parent_lines = _to_lines(parent.content)
+    child_lines = _to_lines(child.content)
+    return _find_comments(parent_lines, child_lines)
 
-def filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List[Message], List[Message]]:
+def _filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List[Message], List[Message]]:
     patches = []
     cover_letter_replies = []
     if (not email_thread.in_reply_to and email_thread.patch_index()[0] == 1):
@@ -325,27 +316,27 @@ def filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List
             cover_letter_replies.append(message)
     return patches, cover_letter_replies
 
-def find_patches(email_thread: Message) -> List[Message]:
-    patches, _ = filter_patches_and_cover_letter_replies(email_thread)
+def _find_patches(email_thread: Message) -> List[Message]:
+    patches, _ = _filter_patches_and_cover_letter_replies(email_thread)
     return patches
 
-def find_cover_letter_replies(email_thread: Message) -> List[Message]:
-    _, cover_letter_replies = filter_patches_and_cover_letter_replies(email_thread)
+def _find_cover_letter_replies(email_thread: Message) -> List[Message]:
+    _, cover_letter_replies = _filter_patches_and_cover_letter_replies(email_thread)
     return cover_letter_replies
 
 def parse_comments(email_thread: Message) -> Patchset:
-    replies = find_cover_letter_replies(email_thread)
+    replies = _find_cover_letter_replies(email_thread)
     comments = []
     for reply in replies:
-        comments.extend(diff_reply(email_thread, reply))
+        comments.extend(_diff_reply(email_thread, reply))
     cover_letter = CoverLetter(text=email_thread.content, comments=comments)
 
-    patches = find_patches(email_thread)
+    patches = _find_patches(email_thread)
     patch_list = []
     for patch in patches:
         comments = []
         for reply in patch.children:
-            comments.extend(diff_reply(patch, reply))
+            comments.extend(_diff_reply(patch, reply))
         if (len(patches) == 1 and not email_thread.in_reply_to):
             set_index = 0
         else:
@@ -362,11 +353,6 @@ def parse_comments(email_thread: Message) -> Patchset:
         patch_list.sort(key=lambda x: x.set_index)
     return Patchset(cover_letter=cover_letter, patches=patch_list)
 
-def associate_comments_to_files(patchset: Patchset) -> None:
-    pass
-
-def associate_comment_to_file(comment: Comment) -> None:
-    pass
 
 class PatchFileChunkLineMap(object):
     def __init__(self, in_range: Tuple[int, int], side: str, offset: int):
@@ -633,7 +619,7 @@ def _parse_git_patch(raw_patch: str) -> RawLineToGerritLineMap:
     else:
         raise ValueError('Unknown error')
 
-def map_patch_to_gerrit_change(patch: Patch) -> None:
+def _map_patch_to_gerrit_change(patch: Patch) -> None:
     logging.info('Patch: %s', patch.text)
     raw_line_to_gerrit_map = _parse_git_patch(patch.text)
     for comment in patch.comments:
@@ -642,7 +628,7 @@ def map_patch_to_gerrit_change(patch: Patch) -> None:
 
 def map_comments_to_gerrit(patchset: Patchset):
     for patch in patchset.patches:
-        map_patch_to_gerrit_change(patch)
+        _map_patch_to_gerrit_change(patch)
 
 def main():
     email_thread = find_thread('PATCH v17 00/19')

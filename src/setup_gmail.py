@@ -93,7 +93,7 @@ class Message(object):
                 f'Lore Link: https://lore.kernel.org/linux-kselftest/{self.id[1:-1]}/\n'
                 f'Commit Hash: {self.archive_hash}')
 
-def look_up_label_id(service, label_name):
+def _look_up_label_id(service, label_name):
     results = service.users().labels().list(userId='me').execute()
     labels = results.get('labels', [])
     for label in labels:
@@ -102,25 +102,25 @@ def look_up_label_id(service, label_name):
     assert len(labels) == 1
     return labels[0]['id']
 
-def get_subject(raw_message) -> str:
+def _get_subject(raw_message) -> str:
     for header in raw_message['payload']['headers']:
         if header['name'].lower() == 'subject':
             return header['value']
     return ''
 
-def get_from(raw_message) -> str:
+def _get_from(raw_message) -> str:
     for header in raw_message['payload']['headers']:
         if header['name'].lower() == 'from':
             return header['value']
     return ''
 
-def get_message_id(raw_message) -> str:
+def _get_message_id(raw_message) -> str:
     for header in raw_message['payload']['headers']:
         if header['name'].lower() == 'message-id':
             return header['value']
     return ''
 
-def get_in_reply_to(raw_message) -> Optional[str]:
+def _get_in_reply_to(raw_message) -> Optional[str]:
     for header in raw_message['payload']['headers']:
         if header['name'].lower() == 'in-reply-to':
             return header['value']
@@ -129,7 +129,7 @@ def get_in_reply_to(raw_message) -> Optional[str]:
 class GmailMessageIndex(object):
     def __init__(self, service, label_name):
         self._service = service
-        self._patchset_label_id = look_up_label_id(service, label_name)
+        self._patchset_label_id = _look_up_label_id(service, label_name)
         self._lookup_index = {} # Maps MessageKey to Thread
         self._messages_seen = {} # Maps message.id to message
         self._deserialize()
@@ -168,14 +168,14 @@ class GmailMessageIndex(object):
         for raw_message in message_candidates:
             raw_message = self._service.users().messages().get(
                     userId='me', id=raw_message['id']).execute()
-            if get_message_id(raw_message) in self._messages_seen:
+            if _get_message_id(raw_message) in self._messages_seen:
                 return True
             body = base64.urlsafe_b64decode(raw_message['payload']['body']
                                             .get('data', '').encode('ASCII')).decode('utf-8')
-            message = Message(id=get_message_id(raw_message),
-                              subject=get_subject(raw_message),
-                              from_=get_from(raw_message),
-                              in_reply_to=get_in_reply_to(raw_message),
+            message = Message(id=_get_message_id(raw_message),
+                              subject=_get_subject(raw_message),
+                              from_=_get_from(raw_message),
+                              in_reply_to=_get_in_reply_to(raw_message),
                               content=body,
                               archive_hash=None)
             new_messages.append(message)
@@ -205,8 +205,8 @@ class GmailMessageIndex(object):
             parent.children.append(message)
 
 
-def get_service():
-    creds = get_credentials_or_setup()
+def _get_service():
+    creds = _get_credentials_or_setup()
     return build('gmail', 'v1', credentials=creds)
 
 class GmailPatchsetFetcher(object):
@@ -214,10 +214,10 @@ class GmailPatchsetFetcher(object):
         raise NotImplementedError()
 
     def _get_service(self):
-        creds = get_credentials_or_setup()
+        creds = _get_credentials_or_setup()
         service = build('gmail', 'v1', credentials=creds)
 
-def get_credentials_or_setup():
+def _get_credentials_or_setup():
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
@@ -242,23 +242,23 @@ def get_credentials_or_setup():
 
     return creds
 
-def print_message_tree(message, prefix=''):
+def _print_message_tree(message, prefix=''):
     print(prefix + message.subject)
     for message in message.children:
-        print_message_tree(message, prefix=prefix + '  ')
+        _print_message_tree(message, prefix=prefix + '  ')
 
 def find_thread(key: str) -> Message:
-    service = get_service()
+    service = _get_service()
     message_index = GmailMessageIndex(service=service, label_name='KUnit Patchset')
     message_index.update()
     return message_index.find_thread(key)
 
 def main():
-    service = get_service()
+    service = _get_service()
     message_index = GmailMessageIndex(service=service, label_name='KUnit Patchset')
     message_index.update()
     message = message_index.find_thread('PATCH v5 00/18')
-    print_message_tree(message)
+    _print_message_tree(message)
 
 
 if __name__ == '__main__':
