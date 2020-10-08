@@ -20,7 +20,7 @@ import message_dao
 from patch_parser import Patch, Patchset
 from absl import logging
 
-def git(verb: str, *args, cwd=None, input=None) -> str:
+def _git(verb: str, *args, cwd=None, input=None) -> str:
     logging.debug('Running\ngit %s %s\n with input: %s', verb, ' '.join(args), input)
     result = subprocess.run(['git', verb] + list(args),
                             cwd=cwd, input=input,
@@ -32,24 +32,24 @@ def git(verb: str, *args, cwd=None, input=None) -> str:
     logging.info('git %s stdout: %s', verb, stdout)
     return stdout
 
-class Git(object):
+class _Git(object):
     def __init__(self, git_dir: str):
         self._git_dir = git_dir
 
     def clone(self, remote, *args):
-        return git('clone', *args, '--', remote, self._git_dir)
+        return _git('clone', *args, '--', remote, self._git_dir)
 
     def am(self, patch_contents: str):
-        return git('am', cwd=self._git_dir, input=patch_contents)
+        return _git('am', cwd=self._git_dir, input=patch_contents)
 
     def push(self, remote_branch: str) -> str:
-        return git('push', '-u', 'origin', remote_branch, cwd=self._git_dir)
+        return _git('push', '-u', 'origin', remote_branch, cwd=self._git_dir)
 
     def config(self, config: str, option: str):
-        return git('config', '--local', config, option, cwd=self._git_dir)
+        return _git('config', '--local', config, option, cwd=self._git_dir)
 
     def commit(self, *args):
-        return git('commit', *args, cwd=self._git_dir)
+        return _git('commit', *args, cwd=self._git_dir)
 
 GERRIT_PUSH_MATCHER = re.compile(
 r'remote: Processing changes: refs: 1, new: 1, done(?:\s+remote: (?:(?:commit)|(?:warning)).+$)?\s+remote:\s+remote: SUCCESS\s+remote:\s+remote:\s+(https://[\w/+.-]+)\s+',
@@ -78,7 +78,7 @@ class GerritGit(object):
     def __init__(self, git_dir: str, cookie_jar_path: str, url: str, project: str, branch: str):
         self._git_dir = git_dir
         self._cookie_jar_path = cookie_jar_path
-        self._git = Git(git_dir)
+        self._git = _Git(git_dir)
         self._remote = url + '/' + project
         self._branch = branch
 
@@ -95,7 +95,7 @@ class GerritGit(object):
             logging.warning('Failed to apply patch %s due to %s. Aborting...',
                             patch.message_id,
                             e.output)
-            git('am', '--abort', cwd=self._git_dir)
+            _git('am', '--abort', cwd=self._git_dir)
             raise
 
     def push_changes(self):
