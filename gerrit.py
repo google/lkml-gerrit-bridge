@@ -18,6 +18,7 @@ import base64
 import pickle
 import os.path
 import re
+from absl import logging
 from git import GerritGit
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -76,9 +77,9 @@ class Gerrit(object):
 
 def find_and_label_revision_id(gerrit: Gerrit, patch: Patch):
     change_info = gerrit.get_change(patch.change_id)
-    print(change_info)
+    logging.info('Change info: %s', change_info)
     revision_id = change_info['current_revision']
-    print(revision_id)
+    logging.info('Revision ID: %s', revision_id)
     patch.revision_id = revision_id
 
 def find_and_label_all_revision_ids(gerrit: Gerrit, patchset: Patchset):
@@ -107,8 +108,8 @@ def upload_comments_for_patch(gerrit: Gerrit, patch: Patch):
             'labels': {'Code-Review': 0},
             'comments': file_comments
     }
-    print('review = ' + str(review))
-    print('set_review response = ' + str(gerrit.set_review(change_id=patch.change_id, revision_id=patch.revision_id, review=review)))
+    logging.info('review = %s', review)
+    logging.info('set_review response = %s', gerrit.set_review(change_id=patch.change_id, revision_id=patch.revision_id, review=review))
 
 def upload_all_comments(gerrit: Gerrit, patchset: Patchset):
     map_comments_to_gerrit(patchset)

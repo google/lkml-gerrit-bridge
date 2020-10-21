@@ -16,6 +16,9 @@ import os
 import glob
 import time
 
+from absl import app
+from absl import logging
+
 import archive_updater
 import gerrit
 import git
@@ -32,6 +35,7 @@ FILE_DIR = 'index_files'
 GERRIT_URL = 'https://linux-review.googlesource.com'
 GOB_URL = 'http://linux.googlesource.com'
 COOKIE_JAR_PATH = 'gerritcookies'
+LOG_PATH = 'logs'
 WAIT_TIME = 10
 
 #TODO(@willliu): consider adding more specific errors to raise, instead of a catch-all
@@ -47,6 +51,8 @@ class Server(object):
         self.archive_index = ArchiveMessageIndex(self.message_dao)
         self.last_hash = self.message_dao.get_last_hash()
         os.makedirs(FILE_DIR, exist_ok=True)
+        os.makedirs(LOG_PATH, exist_ok=True)
+        logging.get_absl_handler().use_absl_log_file('server_logs', LOG_PATH)
 
     @staticmethod
     def remove_files(file_dir : str):
@@ -111,9 +117,10 @@ class Server(object):
         messages = self.archive_index.update(FILE_DIR)
         return messages
 
-    # TODO(@willliu): change print to logging and add logs for # of messages uploaded and # that should be uploaded
     def upload_messages(self, messages_to_upload : List[str]):
+        failed = 0
         for message_id in messages_to_upload:
+            email_thread : str = None
             try:
                 email_thread = self.archive_index.find(message_id)
                 patchset = patch_parser.parse_comments(email_thread)
@@ -121,24 +128,37 @@ class Server(object):
                 gerrit.find_and_label_all_revision_ids(self.gerrit, patchset)
                 gerrit.upload_all_comments(self.gerrit, patchset)
             except Exception as e:
-                print(e)
+                failed += 1
+                failed_message = message_id
+                if email_thread:
+                    failed_message = email_thread.debug_info()
+                logging.exception('Failed to upload %s.', failed_message)
                 continue
+        if failed > 0:
+            logging.warning('Failed to upload %d/%d messages', failed, len(messages_to_upload))
 
-    # TODO(@willliu): change print to logging and add logs for # of comments uploaded and # that should be uploaded
     def upload_comments(self, messages_with_new_comments : List[str]):
+        failed = 0
         for message_id in messages_with_new_comments:
+            email_thread : str = None
             try:
                 email_thread = self.archive_index.find(message_id)
                 patchset = patch_parser.parse_comments(email_thread)
                 gerrit.upload_all_comments(self.gerrit, patchset)
             except Exception as e:
-                print(e)
+                failed += 1
+                failed_message = message_id
+                if email_thread:
+                    failed_message = email_thread.debug_info()
+                logging.exception('Failed to upload comments for %s.', failed_message)
                 continue
+        if failed > 0:
+            logging.warning('Failed to upload %d/%d comments', failed, len(messages_with_new_comments))
 
-def main():
+def main(argv):
     server = Server()
     server.run()
 
 
 if __name__ == '__main__':
-    main()
+    app.run(main)

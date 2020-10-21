@@ -18,6 +18,7 @@ import base64
 import pickle
 import os.path
 import re
+from absl import logging
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -174,7 +175,7 @@ def build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote
 def find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
                                parent_lines: List[Line],
                                lines_so_far: List[QuotedLine]) -> List[QuotedLine]:
-    print('len(parent_lines) = ' + str(len(parent_lines)))
+    logging.info('len(parent_lines) = %d', len(parent_lines))
     if not parent_lines:
         return lines_so_far
     parent_lines = parent_lines[:]
@@ -263,8 +264,8 @@ def is_same_line(child_line: Line, quoted_line: QuotedLine, quote_prefix: str) -
     if child_line.line_number == quoted_line.child_line_number:
         if normalize_whitespace(
                 child_line.text[len(quote_prefix):]) != normalize_whitespace(quoted_line.text):
-            print('child_line.text: ' + child_line.text)
-            print('quote_line.text: ' + quoted_line.text)
+            logging.info('child_line.text: %s', child_line.text)
+            logging.info('quote_line.text: %s', quoted_line.text)
             raise ValueError('Lines have matching line numbers, but text does not match')
         else:
             return True
@@ -390,7 +391,7 @@ class PatchFileLineMap(object):
         self.in_range = (chunks[0].in_range[0], chunks[-1].in_range[1])
 
     def __contains__(self, raw_line):
-        print('Checking if ' + str(self.in_range[0]) + ' <= ' + str(raw_line) + ' <= ' + str(self.in_range[1]))
+        logging.info('Checking if %s <= %s <= %s', str(self.in_range[0]), + str(raw_line), str(self.in_range[1]))
         return self.in_range[0] <= raw_line and raw_line <= self.in_range[1]
 
     def map(self, raw_line: int) -> Tuple[str, int]:
@@ -398,7 +399,7 @@ class PatchFileLineMap(object):
             if raw_line in chunk:
                 side, line = chunk.map(raw_line)
                 return self.name + side, line
-        print(str(raw_line) + ' was not in any chunk')
+        logging.info('%s was not in any chunk', str(raw_line))
         return self.name, -1
 
 
@@ -414,10 +415,10 @@ class RawLineToGerritLineMap(object):
 
     def map(self, raw_line: int) -> Tuple[str, int]:
         for patch_file in self.patch_files:
-            print('Checking: ' + patch_file.name)
+            logging.info('Checking: %s', patch_file.name)
             if raw_line in patch_file:
                 return patch_file.map(raw_line)
-        print(str(raw_line) + ' was not found in patch')
+        logging.info('%s was not found in patch', str(raw_line))
         return '', -1
 
 SKIP_LINE_MATCHER = re.compile(r'^@@ -(\d+)(,\d+)? \+(\d+)(,\d+)? @@.*$')
@@ -435,7 +436,7 @@ def _parse_patch_file_unchanged_chunk(
         gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
     in_start = raw_index
     while (not _does_match_end_of_super_chunk(lines)) and ((not lines[0]) or (lines[0] and lines[0][0] != '+' and lines[0][0] != '-')):
-        print('dropping line: ' + lines[0])
+        logging.info('dropping line: %s', lines[0])
         lines.pop(0)
         gerrit_orig_line += 1
         gerrit_new_line += 1
@@ -453,7 +454,7 @@ def _parse_patch_file_added_chunk(
         gerrit_orig_line: int,
         gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
     in_start = raw_index
-    print('First char - 1: ' + lines[0][0])
+    logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
         lines.pop(0)
         gerrit_orig_line += 1
@@ -493,7 +494,7 @@ def _parse_patch_file_chunk(lines: List[str],
     if _does_match_end_of_super_chunk(lines):
         raise ValueError('Unexpected line: ' + line)
     elif line and line[0] == '+':
-        print('First char - 0: ' + line[0])
+        logging.info('First char - 0: %c', line[0])
         ret_val =  _parse_patch_file_added_chunk(lines, raw_index, gerrit_orig_line, gerrit_new_line)
         if start_line_len == len(lines):
             raise ValueError('Could not parse add line: ' + line)
@@ -515,12 +516,12 @@ def _parse_patch_file_super_chunk(lines: List[str], raw_index: int) -> List[Patc
         return []
     gerrit_orig_line = int(match.group(1))
     gerrit_new_line = int(match.group(3))
-    print('old starts at: ' + str(gerrit_orig_line) + ', new starts at: ' + str(gerrit_new_line))
+    logging.info('old starts at: %d, new starts at: %d', gerrit_orig_line, gerrit_new_line)
     lines.pop(0)
     raw_index += 1
     chunks = []
     while not _does_match_end_of_super_chunk(lines):
-        print('lines left: ' + str(len(lines)))
+        logging.info('lines left: %d', len(lines))
         (gerrit_orig_line,
          gerrit_new_line,
          raw_index,
@@ -534,7 +535,7 @@ def _parse_patch_file_super_chunk(lines: List[str], raw_index: int) -> List[Patc
 def _parse_patch_file_entry(lines: List[str], index: int) -> Optional[PatchFileLineMap]:
     match = DIFF_LINE_MATCHER.match(lines[0])
     if not match:
-        print('failed to find file diff, instead found: ' + lines[0])
+        logging.info('failed to find file diff, instead found: %s', lines[0])
         return None
     file_name = match.group(1)
     lines.pop(0)
@@ -548,19 +549,19 @@ def _parse_patch_file_entry(lines: List[str], index: int) -> Optional[PatchFileL
         lines.pop(0)
         index += 1
     else:
-        print('failed to find index line, instead found: ' + lines[0])
+        logging.info('failed to find index line, instead found: %s', lines[0])
         return None
     if re.match(r'^--- ((a/\S+$)|(/dev/null))', lines[0]):
         lines.pop(0)
         index += 1
     else:
-        print('failed to find -- a/* line, instead found: ' + lines[0])
+        logging.info('failed to find -- a/* line, instead found: %s', lines[0])
         return None
     if re.match(r'^\+\+\+ b/\S+$', lines[0]):
         lines.pop(0)
         index += 1
     else:
-        print('failed to find ++ b/* line, instead found: ' + lines[0])
+        logging.info('failed to find ++ b/* line, instead found: %s', lines[0])
         return None
 
     chunks = []
@@ -568,9 +569,9 @@ def _parse_patch_file_entry(lines: List[str], index: int) -> Optional[PatchFileL
     while super_chunk:
         chunks.extend(super_chunk)
         chunk = super_chunk[-1]
-        print('parsed super chunk: ' + str(index) + ' to ' + str(chunk.in_range[1]))
+        logging.info('parsed super chunk: %d to %d', index, chunk.in_range[1])
         index = chunk.in_range[1]
-        print('about to parse: ' + lines[0])
+        logging.info('about to parse: %s', lines[0])
         super_chunk = _parse_patch_file_super_chunk(lines, index)
     if not chunks:
         raise ValueError('Expected chunks in file, but found: ' + lines[0])
@@ -608,7 +609,7 @@ def _parse_patch_header(lines: List[str]) -> int:
         lines.pop(0)
         index += 1
     else:
-        print('expected blank line after summary, instead got: ' + lines[0])
+        logging.info('expected blank line after summary, instead got: %s', lines[0])
 
     # Make sure the next line is the start of a file diff.
     if DIFF_LINE_MATCHER.match(lines[0]):
@@ -634,10 +635,10 @@ def _parse_git_patch(raw_patch: str) -> RawLineToGerritLineMap:
         raise ValueError('Unknown error')
 
 def map_patch_to_gerrit_change(patch: Patch) -> None:
-    print(patch.text)
+    logging.info('Patch: %s', patch.text)
     raw_line_to_gerrit_map = _parse_git_patch(patch.text)
     for comment in patch.comments:
-        print('raw_line: ' + str(comment.raw_line) + ', message: ' + comment.message)
+        logging.info('raw_line: %d, messages: %s', comment.raw_line, comment.message)
         comment.file, comment.line = raw_line_to_gerrit_map.map(comment.raw_line)
 
 def map_comments_to_gerrit(patchset: Patchset):
@@ -650,7 +651,7 @@ def main():
     map_comments_to_gerrit(patchset)
     for patch in patchset.patches:
         for comment in patch.comments:
-            print('At ' + str(comment.raw_line) + ': ' + str(comment.file) + ':' + str(comment.line) + ':\n' + comment.message)
+            logging.info('At %d: %s: %s:\n %s', comment.raw_line, str(comment.file), str(comment.line), comment.message)
 
 if __name__ == '__main__':
     main()

@@ -18,11 +18,10 @@ import shutil
 import subprocess
 import message_dao
 from patch_parser import Patch, Patchset
+from absl import logging
 
 def git(verb: str, *args, cwd=None, input=None) -> str:
-    print(input)
-    print(f'git {verb} ' + ' '.join(args))
-    print(list(args))
+    logging.debug('Running\ngit %s %s\n with input: %s', verb, ' '.join(args), input)
     result = subprocess.run(['git', verb] + list(args),
                             cwd=cwd, input=input,
                             text=True,
@@ -30,7 +29,7 @@ def git(verb: str, *args, cwd=None, input=None) -> str:
                             stderr=subprocess.STDOUT,
                             stdout=subprocess.PIPE)
     stdout = str(result.stdout)
-    print('stdout: ' + stdout)
+    logging.info('git %s stdout: %s', verb, stdout)
     return stdout
 
 class Git(object):
@@ -59,18 +58,18 @@ flags=re.MULTILINE)
 GERRIT_CHANGE_ID_MATCHER = re.compile(r'^https://[\w/+.-]+\+/(\d+)$')
 
 def _parse_gerrit_patch_push(gerrit_result: str) -> str:
-    print(gerrit_result)
+    logging.info('%s', gerrit_result)
     match = GERRIT_PUSH_MATCHER.search(gerrit_result)
     if match is None:
       raise ValueError(f'Could not find change url from gerrit output: {gerrit_result}')
     change_url = match.group(1)
-    print('change_url = ' + change_url)
+    logging.info('change_url = %s', change_url)
 
     match = GERRIT_CHANGE_ID_MATCHER.match(change_url)
     if match is None:
       raise ValueError(f'Could not extract change id from gerrit output: {gerrit_result}')
     change_id = match.group(1)
-    print('change_id = ' + change_id)
+    logging.info('change_id = %s', change_id)
     return change_id
 
 CURL_CHANGE_ID_CMD = 'curl -Lo `git rev-parse --git-dir`/hooks/commit-msg https://gerrit-review.googlesource.com/tools/hooks/commit-msg ; chmod +x `git rev-parse --git-dir`/hooks/commit-msg'
@@ -90,21 +89,19 @@ class GerritGit(object):
         return self._git.commit('--amend', '--no-edit')
 
     def apply_patch(self, patch: Patch):
-        print(patch.text_with_headers)
-        return self._git.am(patch.text_with_headers)
-
+        try:
+            output = self._git.am(patch.text_with_headers)
+            return output
+        except subprocess.CalledProcessError:
+            logging.warning('Failed to apply patch %s. Aborting...', patch.message_id)
+            git('am', '--abort', cwd=self._git_dir)
+            raise
 
     def push_changes(self):
         return self._git.push('HEAD:refs/for/' + self._branch)
 
     def push_patch(self, patch: Patch) -> Patch:
-        try:
-            self.apply_patch(patch)
-        except subprocess.CalledProcessError:
-            # TODO(@willliu): change to log
-            print('Failed to apply. Aborting...')
-            git('am', '--abort', cwd=self._git_dir)
-            raise
+        self.apply_patch(patch)
         self.amend_commit()
         gerrit_output = self.push_changes()
         change_id = _parse_gerrit_patch_push(gerrit_output)
