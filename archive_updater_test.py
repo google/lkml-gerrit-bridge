@@ -3,7 +3,7 @@ import subprocess
 import os
 import tempfile
 import shutil
-from archive_updater import fill_message_directory
+from archive_updater import fill_message_directory, setup_archive
 from unittest import mock
 
 class ArchiveUpdaterFillMessageDirectoryTest(unittest.TestCase):
@@ -63,6 +63,34 @@ class ArchiveUpdaterFillMessageDirectoryTest(unittest.TestCase):
 
         self.assertEqual(len(os.listdir(self.tmp_dir)), 0)
         self.assertEqual(last_used_hash, 'last_used_hash')
+
+    @mock.patch.object(subprocess, 'check_call')
+    @mock.patch.object(os, 'path')
+    def test_setup_directory_success(self, mock_path, mock_check_call):
+        mock_path.isdir.return_value = False
+        setup_archive('archive_path')
+        mock_check_call.assert_called_with(['git', '-C', '..', 'clone', '--mirror',
+                           'https://lore.kernel.org/linux-kselftest/0',
+                           'linux-kselftest/git/0.git'])
+
+    @mock.patch.object(subprocess, 'check_call')
+    @mock.patch.object(os, 'path')
+    def test_setup_directory_exists(self, mock_path, mock_check_call):
+        mock_path.isdir.return_value = True
+        setup_archive('archive_path')
+        mock_check_call.assert_not_called()
+
+    @mock.patch.object(subprocess, 'check_call')
+    @mock.patch.object(os, 'path')
+    def test_setup_directory_fails(self, mock_path, mock_check_call):
+        mock_path.isdir.return_value = False
+        mock_check_call.side_effect = subprocess.CalledProcessError(returncode=1,
+                                                                    cmd=['git', '-C', '..', 'clone', '--mirror',
+                                                                         'https://lore.kernel.org/linux-kselftest/0',
+                                                                         'linux-kselftest/git/0.git'],
+                                                                    stderr=b'Failed to log')
+        with self.assertRaises(subprocess.CalledProcessError):
+            setup_archive('archive_path')
 
 
 if __name__ == '__main__':
