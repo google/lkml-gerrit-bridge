@@ -14,7 +14,8 @@
 
 import email
 import os
-import subprocess
+
+from absl import logging
 
 from typing import List, Dict, Optional
 from setup_gmail import Message
@@ -24,7 +25,6 @@ class ArchiveMessageIndex(object):
     def __init__(self, message_dao : MessageDao):
         self._message_dao = message_dao
 
-    #TODO(willliu@google.com): Process the new messages to determine which ones need to be uploaded
     def update(self, data_dir: str) -> List[Message]:
         """ Updates index with messages in the passed in directory.
         Returns a list of new messages """
@@ -67,7 +67,7 @@ class ArchiveMessageIndex(object):
         for message in need_parent:
             parent = self._message_dao.get(message.in_reply_to)
             if not parent:
-                print("Could not find parent email, dropping " + message.subject)
+                logging.info('Could not find parent email, dropping %s', message.debug_info())
                 continue
             parent.children.append(message)
             self._message_dao.store(parent)
@@ -76,13 +76,12 @@ def generate_email_from_file(file: str) -> Optional[Message]:
     with open(file, "r") as raw_email:
         try:
             compiled_email = email.message_from_string(raw_email.read())
-            return _email_to_message(compiled_email)
+            return _email_to_message(compiled_email, file[12:-4])
         except Exception as e:
-            # TODO: Log exception
-            print(e)
+            logging.error('Failed to generate email from archive. Error: %s', e)
             return None
 
-def _email_to_message(compiled_email) -> Message:
+def _email_to_message(compiled_email, archive_hash) -> Message:
     content = []
     if compiled_email.is_multipart():
         for payload in compiled_email.get_payload():
@@ -93,4 +92,5 @@ def _email_to_message(compiled_email) -> Message:
                    compiled_email['subject'],
                    compiled_email['from'],
                    compiled_email['In-Reply-To'],
-                   content)
+                   content,
+                   archive_hash)

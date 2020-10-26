@@ -47,13 +47,14 @@ class Thread(object):
         self.message_id = message_ids
 
 class Message(object):
-    def __init__(self, id, subject, from_, in_reply_to, content):
+    def __init__(self, id, subject, from_, in_reply_to, content, archive_hash):
         self.id = id
         self.subject = subject
         self.from_ = from_
         self.in_reply_to = in_reply_to
         self.content = content
         self.change_id = None
+        self.archive_hash = archive_hash
         self.children = []
 
     def get_key(self):
@@ -79,6 +80,11 @@ class Message(object):
 
     def __repr__(self):
         return str(self)
+
+    def debug_info(self) -> str:
+        return (f'Message ID: {self.id}\n'
+                f'Lore Link: https://lore.kernel.org/linux-kselftest/{self.id[1:-1]}/\n'
+                f'Commit Hash: {self.archive_hash}')
 
 def look_up_label_id(service, label_name):
     results = service.users().labels().list(userId='me').execute()
@@ -163,7 +169,8 @@ class GmailMessageIndex(object):
                               subject=get_subject(raw_message),
                               from_=get_from(raw_message),
                               in_reply_to=get_in_reply_to(raw_message),
-                              content=body)
+                              content=body,
+                              archive_hash=None)
             new_messages.append(message)
         return False
 
