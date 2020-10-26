@@ -29,7 +29,6 @@ from archive_converter import ArchiveMessageIndex
 from setup_gmail import Message
 from typing import List, Set, Tuple
 
-# TODO(@willliu): add git path as a variable passed into the server or add a file to run that sets up the archive repo.
 GIT_PATH = '../linux-kselftest/git/0.git'
 FILE_DIR = 'index_files'
 GERRIT_URL = 'https://linux-review.googlesource.com'
@@ -50,6 +49,7 @@ class Server(object):
         self.message_dao = message_dao.MessageDao()
         self.archive_index = ArchiveMessageIndex(self.message_dao)
         self.last_hash = self.message_dao.get_last_hash()
+        archive_updater.setup_archive(GIT_PATH)
         os.makedirs(FILE_DIR, exist_ok=True)
         os.makedirs(LOG_PATH, exist_ok=True)
         logging.get_absl_handler().use_absl_log_file('server_logs', LOG_PATH)

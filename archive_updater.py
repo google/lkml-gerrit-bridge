@@ -53,6 +53,12 @@ def fill_message_directory(archive_path: str, directory: str, last_used_commit_h
 
     return message_hashes[0]
 
+def setup_archive(archive_path : str):
+    if not os.path.isdir(archive_path):
+        subprocess.check_call(['git', '-C', '..', 'clone', '--mirror',
+                           'https://lore.kernel.org/linux-kselftest/0',
+                           'linux-kselftest/git/0.git'])
+
 def main():
     print(fill_message_directory('../linux-kselftest/git/0.git', '../lkml-gerrit-bridge/test_data', 'cc49e216e3fdff0ffed7675dc7215aba5e3d05cc'))
 
