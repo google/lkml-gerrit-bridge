@@ -20,6 +20,9 @@ wrappers around Gerrit.
 
 You need to do two things: Set up Gmail, and set up Gerrit cookies.
 
+To set up a server which uploads emails sent to the kselftest email list, you
+need to set up Gerrit Cookies and build a docker image.
+
 ### Setting up Gmail
 
 First you need to create a label in your Gmail account called "KUnit Patchset".
@@ -51,6 +54,24 @@ Then you need to copy the cookies that were added to a file called
 `gerritcookies` in this directory.
 
 NOTE: YOU MUST ADD A COMMENT TO THE TOP OF THE COOKIE FILE: `# HTTP Cookie File`
+
+### Building a docker image
+
+First, make sure that you have Docker installed on the device which is building
+the image. Before building, there are a couple of folders that should be
+removed if you have run the server locally. Please run the following command
+before building to ensure the image size isn't too large.
+```bash
+rm -rf linux_kselftest/ src/gerrit_git_dir/ src/index_files/
+```
+
+After ensuring these folders are deleted, you can build the image by running the
+following command in the lkml-gerrit-bridge directory:
+```bash
+docker build -t myimage .
+```
+After running the build command, you will have created an image with the tag
+'myimage'.
 
 ## Using LKML Gerrit Bridge
 

@@ -44,8 +44,10 @@ class Server(object):
         rest = gerrit.get_gerrit_rest_api(COOKIE_JAR_PATH, GERRIT_URL)
         self.gerrit = gerrit.Gerrit(rest)
         self.gerrit_git = git.GerritGit(git_dir='gerrit_git_dir',
-                               cookie_jar_path=COOKIE_JAR_PATH,
-                               url=GOB_URL, project='linux/kernel/git/torvalds/linux', branch='master')
+                                        cookie_jar_path=COOKIE_JAR_PATH,
+                                        url=GOB_URL,
+                                        project='linux/kernel/git/torvalds/linux',
+                                        branch='master')
         self.message_dao = message_dao.MessageDao()
         self.archive_index = ArchiveMessageIndex(self.message_dao)
         self.last_hash = self.message_dao.get_last_hash()
