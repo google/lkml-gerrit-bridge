@@ -3,3 +3,11 @@ token.pickle
 index.pickle
 gerritcookies
 __pycache__
+# The following directories are generated during runtime and are used to assist
+# some of the functionality of lkml-gerrit-bridge. However, they are not
+# part of the working repository and sometimes persist after the program
+# is halted.
+linux-kselftest
+src/gerrit_git_dir
+src/index_files
+src/logs

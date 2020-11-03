@@ -90,15 +90,20 @@ class GerritGit(object):
 
     def apply_patch(self, patch: Patch):
         try:
-            output = self._git.am(patch.text_with_headers)
-            return output
-        except subprocess.CalledProcessError:
-            logging.warning('Failed to apply patch %s. Aborting...', patch.message_id)
+            return self._git.am(patch.text_with_headers)
+        except subprocess.CalledProcessError as e:
+            logging.warning('Failed to apply patch %s due to %s. Aborting...',
+                            patch.message_id,
+                            e.output)
             git('am', '--abort', cwd=self._git_dir)
             raise
 
     def push_changes(self):
-        return self._git.push('HEAD:refs/for/' + self._branch)
+        try:
+            return self._git.push('HEAD:refs/for/' + self._branch)
+        except subprocess.CalledProcessError as e:
+            logging.warning('Failed to push upstream because %s.', e.output)
+            raise
 
     def push_patch(self, patch: Patch) -> Patch:
         self.apply_patch(patch)
@@ -112,6 +117,9 @@ class GerritGit(object):
         os.makedirs(self._git_dir)
         self.shallow_clone(depth=clone_depth)
         self._git.config('http.cookiefile', '../' + self._cookie_jar_path)
+        self._git.config('user.name', '"lkml-gerrit-bridge"')
+        # TODO: Change config to use a service account instead of @willliu
+        self._git.config('user.email', '"willliu@google.com"')
         subprocess.run(CURL_CHANGE_ID_CMD, cwd=self._git_dir, shell=True)
 
     def cleanup_git_dir(self):
@@ -131,5 +139,3 @@ class GerritGit(object):
             except:
                 self.cleanup_git_dir()
                 raise
-
-
