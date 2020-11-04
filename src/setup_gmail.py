@@ -17,7 +17,7 @@ import base64
 import pickle
 import os.path
 import re
-from typing import Optional
+from typing import Optional, Tuple
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -65,9 +65,17 @@ class Message(object):
             return None
 
     def is_patch(self) -> bool:
-        if re.match(r'\[.+ (\d+)/(\d+)\] .+', self.subject):
+        if re.match(r'\[.+\] .+', self.subject):
             return True
         return False
+
+    def patch_index(self) -> Tuple[int, int]:
+        if not self.is_patch():
+            raise ValueError(f'Missing patch index in subject: {self.subject}')
+        match = re.match(r'\[.+ (\d+)/(\d+)\] .+', self.subject)
+        if match:
+            return int(match.group(1)), int(match.group(2))
+        return (1, 1)
 
     def __str__(self):
         in_reply_to = self.in_reply_to or ''

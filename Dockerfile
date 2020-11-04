@@ -14,5 +14,4 @@ RUN pip3 install -r requirements.txt
 COPY src/ ./
 
 # command to run on container start
-CMD [ "python3", "./main.py", "--stderrthreshold=info" ]
-
+CMD [ "bash", "-c", "python3 ./main.py --stderrthreshold=info 2>&1" ]
