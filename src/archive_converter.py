@@ -78,7 +78,7 @@ def generate_email_from_file(file: str) -> Optional[Message]:
             compiled_email = email.message_from_string(raw_email.read())
             return _email_to_message(compiled_email, file[12:-4])
         except Exception as e:
-            logging.error('Failed to generate email from archive. Error: %s', e)
+            logging.error('Failed to generate %s from archive. Error: %s', file[12:-4], e)
             return None
 
 def _email_to_message(compiled_email, archive_hash) -> Message:

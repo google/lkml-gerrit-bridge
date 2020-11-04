@@ -39,13 +39,13 @@ class CoverLetter(object):
         self.comments = comments
 
 class Patch(object):
-    def __init__(self, message_id, text, text_with_headers, set_index, comments):
+    def __init__(self, message_id, text, text_with_headers, set_index, comments, change_id):
         self.message_id = message_id
         self.text = text
         self.text_with_headers = text_with_headers
         self.set_index = set_index
         self.comments = comments
-        self.change_id = None
+        self.change_id = change_id
         self.revision_id = None
 
 class Patchset(object):
@@ -309,6 +309,7 @@ def find_comments(parent_lines: List[Line], all_child_lines: List[Line]) -> List
     return merge_comment_lines(comment_lines)
 
 def diff_reply(parent: Message, child: Message) -> List[Comment]:
+    #TODO: to_lines only works on str, but Message.content is also sometimes a List
     parent_lines = to_lines(parent.content)
     child_lines = to_lines(child.content)
     return find_comments(parent_lines, child_lines)
@@ -316,7 +317,7 @@ def diff_reply(parent: Message, child: Message) -> List[Comment]:
 def filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List[Message], List[Message]]:
     patches = []
     cover_letter_replies = []
-    if (not email_thread.in_reply_to and parse_set_index(email_thread)[0] == 1):
+    if (not email_thread.in_reply_to and email_thread.patch_index()[0] == 1):
         patches.append(email_thread)
     for message in email_thread.children:
         if message.is_patch():
@@ -332,12 +333,6 @@ def find_patches(email_thread: Message) -> List[Message]:
 def find_cover_letter_replies(email_thread: Message) -> List[Message]:
     _, cover_letter_replies = filter_patches_and_cover_letter_replies(email_thread)
     return cover_letter_replies
-
-def parse_set_index(email: Message) -> Tuple[int, int]:
-    match = re.match(r'\[.+ (\d+)/(\d+)\] .+', email.subject)
-    if match is None:
-      raise ValueError(f'Missing patch index in subject: {email.subject}')
-    return int(match.group(1)), int(match.group(2))
 
 def parse_comments(email_thread: Message) -> Patchset:
     replies = find_cover_letter_replies(email_thread)
@@ -355,11 +350,16 @@ def parse_comments(email_thread: Message) -> Patchset:
         if (len(patches) == 1 and not email_thread.in_reply_to):
             set_index = 0
         else:
-            set_index, length = parse_set_index(patch)
+            set_index, length = patch.patch_index()
             assert length == len(patches)
         text = 'From: {from_}\nSubject: {subject}\n\n{content}'.format(
             from_=patch.from_, subject=patch.subject, content=patch.content)
-        patch_list.append(Patch(message_id = patch.id, text=patch.content, text_with_headers=text, set_index=set_index, comments=comments))
+        patch_list.append(Patch(message_id = patch.id,
+                                text=patch.content,
+                                text_with_headers=text,
+                                set_index=set_index,
+                                comments=comments,
+                                change_id=patch.change_id))
         patch_list.sort(key=lambda x: x.set_index)
     return Patchset(cover_letter=cover_letter, patches=patch_list)
 
@@ -391,7 +391,7 @@ class PatchFileLineMap(object):
         self.in_range = (chunks[0].in_range[0], chunks[-1].in_range[1])
 
     def __contains__(self, raw_line):
-        logging.info('Checking if %s <= %s <= %s', str(self.in_range[0]), + str(raw_line), str(self.in_range[1]))
+        logging.info('Checking if %s <= %s <= %s', str(self.in_range[0]), str(raw_line), str(self.in_range[1]))
         return self.in_range[0] <= raw_line and raw_line <= self.in_range[1]
 
     def map(self, raw_line: int) -> Tuple[str, int]:

@@ -122,7 +122,7 @@ class Server(object):
     def upload_messages(self, messages_to_upload : List[str]):
         failed = 0
         for message_id in messages_to_upload:
-            email_thread : str = None
+            email_thread : Message
             try:
                 email_thread = self.archive_index.find(message_id)
                 patchset = patch_parser.parse_comments(email_thread)
@@ -142,7 +142,7 @@ class Server(object):
     def upload_comments(self, messages_with_new_comments : List[str]):
         failed = 0
         for message_id in messages_with_new_comments:
-            email_thread : str = None
+            email_thread : Message
             try:
                 email_thread = self.archive_index.find(message_id)
                 patchset = patch_parser.parse_comments(email_thread)
