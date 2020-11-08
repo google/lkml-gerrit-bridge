@@ -36,19 +36,19 @@ class _Git(object):
     def __init__(self, git_dir: str) -> None:
         self._git_dir = git_dir
 
-    def clone(self, remote, *args):
+    def clone(self, remote, *args) -> str:
         return _git('clone', *args, '--', remote, self._git_dir)
 
-    def am(self, patch_contents: str):
+    def am(self, patch_contents: str) -> str:
         return _git('am', cwd=self._git_dir, input=patch_contents)
 
     def push(self, remote_branch: str) -> str:
         return _git('push', '-u', 'origin', remote_branch, cwd=self._git_dir)
 
-    def config(self, config: str, option: str):
+    def config(self, config: str, option: str) -> str:
         return _git('config', '--local', config, option, cwd=self._git_dir)
 
-    def commit(self, *args):
+    def commit(self, *args) -> str:
         return _git('commit', *args, cwd=self._git_dir)
 
 GERRIT_PUSH_MATCHER = re.compile(
@@ -82,13 +82,13 @@ class GerritGit(object):
         self._remote = url + '/' + project
         self._branch = branch
 
-    def shallow_clone(self, depth=1):
+    def shallow_clone(self, depth=1) -> str:
         return self._git.clone(self._remote, '--depth', str(depth), '--single-branch', '--branch', self._branch)
 
-    def amend_commit(self):
+    def amend_commit(self) -> str:
         return self._git.commit('--amend', '--no-edit')
 
-    def apply_patch(self, patch: Patch):
+    def apply_patch(self, patch: Patch) -> str:
         try:
             return self._git.am(patch.text_with_headers)
         except subprocess.CalledProcessError as e:
@@ -98,7 +98,7 @@ class GerritGit(object):
             _git('am', '--abort', cwd=self._git_dir)
             raise
 
-    def push_changes(self):
+    def push_changes(self) -> str:
         try:
             return self._git.push('HEAD:refs/for/' + self._branch)
         except subprocess.CalledProcessError as e:
@@ -113,7 +113,7 @@ class GerritGit(object):
         patch.change_id = change_id
         return patch
 
-    def setup_git_dir(self, clone_depth=1):
+    def setup_git_dir(self, clone_depth=1) -> None:
         os.makedirs(self._git_dir)
         self.shallow_clone(depth=clone_depth)
         self._git.config('http.cookiefile', '../' + self._cookie_jar_path)
@@ -122,7 +122,7 @@ class GerritGit(object):
         self._git.config('user.email', '"willliu@google.com"')
         subprocess.run(CURL_CHANGE_ID_CMD, cwd=self._git_dir, shell=True)
 
-    def cleanup_git_dir(self):
+    def cleanup_git_dir(self) -> None:
         shutil.rmtree(self._git_dir)
 
     # Pass in the dao so that patches can be updated when they are pushed, this way less lost data when an error happens

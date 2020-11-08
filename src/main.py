@@ -27,7 +27,7 @@ import patch_parser
 
 from archive_converter import ArchiveMessageIndex
 from message import Message
-from typing import List, Set, Tuple
+from typing import Collection, List, Set, Tuple
 
 GIT_PATH = '../linux-kselftest/git/0.git'
 FILE_DIR = 'index_files'
@@ -74,12 +74,12 @@ class Server(object):
                 replies.append(message)
         return (parents, replies)
 
-    def run(self):
+    def run(self) -> None:
         while True:
             self.update_convert_upload()
             time.sleep(WAIT_TIME)
 
-    def update_convert_upload(self):
+    def update_convert_upload(self) -> None:
         new_messages = self.update_message_dir()
 
         # Differentiate between messages to upload and comments
@@ -139,7 +139,7 @@ class Server(object):
         if failed > 0:
             logging.warning('Failed to upload %d/%d messages', failed, len(messages_to_upload))
 
-    def upload_comments(self, messages_with_new_comments : List[str]):
+    def upload_comments(self, messages_with_new_comments : Collection[str]):
         failed = 0
         for message_id in messages_with_new_comments:
             email_thread : Message
@@ -157,7 +157,7 @@ class Server(object):
         if failed > 0:
             logging.warning('Failed to upload %d/%d comments', failed, len(messages_with_new_comments))
 
-def main(argv):
+def main(argv) -> None:
     server = Server()
     server.run()
 

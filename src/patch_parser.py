@@ -354,7 +354,7 @@ class PatchFileChunkLineMap(object):
         self.side = side
         self.offset = offset
 
-    def __contains__(self, raw_line):
+    def __contains__(self, raw_line: int) -> bool:
         return self.in_range[0] <= raw_line and raw_line <= self.in_range[1]
 
     def map(self, raw_line: int) -> Tuple[str, int]:
@@ -369,7 +369,7 @@ class PatchFileLineMap(object):
         self.chunks = chunks
         self.in_range = (chunks[0].in_range[0], chunks[-1].in_range[1])
 
-    def __contains__(self, raw_line):
+    def __contains__(self, raw_line: int) -> bool:
         logging.info('Checking if %s <= %s <= %s', str(self.in_range[0]), str(raw_line), str(self.in_range[1]))
         return self.in_range[0] <= raw_line and raw_line <= self.in_range[1]
 
@@ -386,7 +386,7 @@ class RawLineToGerritLineMap(object):
     def __init__(self, patch_files: List[PatchFileLineMap]) -> None:
         self.patch_files = patch_files
 
-    def __contains__(self, raw_line):
+    def __contains__(self, raw_line: int) -> bool:
         for patch_file in self.patch_files:
             if raw_line in patch_file:
                 return True

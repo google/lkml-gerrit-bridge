@@ -36,7 +36,7 @@ class Message(object):
         self.archive_hash = archive_hash
         self.children = []  # type: List[Message]
 
-    def get_key(self):
+    def get_key(self) -> Optional[str]:
         match = re.match(r'\[(.+)\] .+', self.subject)
         if match:
             return match.group(1)
