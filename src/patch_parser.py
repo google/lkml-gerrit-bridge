@@ -15,7 +15,7 @@
 from typing import Dict, List, Optional, Tuple
 import re
 from absl import logging
-from setup_gmail import Message
+from message import Message
 
 class Comment(object):
     def __init__(self, raw_line, message):

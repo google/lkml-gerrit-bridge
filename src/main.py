@@ -26,7 +26,7 @@ import message_dao
 import patch_parser
 
 from archive_converter import ArchiveMessageIndex
-from setup_gmail import Message
+from message import Message
 from typing import List, Set, Tuple
 
 GIT_PATH = '../linux-kselftest/git/0.git'

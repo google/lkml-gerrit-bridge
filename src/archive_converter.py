@@ -18,7 +18,7 @@ import os
 from absl import logging
 
 from typing import List, Dict, Optional
-from setup_gmail import Message
+from message import Message
 from message_dao import MessageDao
 
 class ArchiveMessageIndex(object):

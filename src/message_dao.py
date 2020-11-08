@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from typing import Dict, Optional
-from setup_gmail import Message
+from message import Message
 
 EPOCH_HASH = 'cc49e216e3fdff0ffed7675dc7215aba5e3d05cc'
 

@@ -12,7 +12,7 @@ from archive_converter import ArchiveMessageIndex
 from main import Server
 from message_dao import MessageDao
 from patch_parser import parse_comments
-from setup_gmail import Message
+from message import Message
 
 
 class MainTest(unittest.TestCase):

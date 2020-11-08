@@ -2,7 +2,7 @@ import unittest
 from archive_converter import generate_email_from_file, ArchiveMessageIndex
 from message_dao import MessageDao
 from typing import List
-from setup_gmail import Message
+from message import Message
 
 class ArchiveConverterTest(unittest.TestCase):
 

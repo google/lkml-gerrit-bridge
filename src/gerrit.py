@@ -21,7 +21,7 @@ from pygerrit2 import GerritRestAPI
 from requests import PreparedRequest
 from requests.auth import AuthBase
 from http.cookiejar import CookieJar, MozillaCookieJar
-from setup_gmail import Message
+from message import Message
 from archive_converter import ArchiveMessageIndex
 from message_dao import MessageDao
 
