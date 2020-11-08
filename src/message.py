@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import email
 import re
 from typing import Optional, Tuple
 
@@ -70,3 +71,20 @@ class Message(object):
         return (f'Message ID: {self.id}\n'
                 f'Lore Link: https://lore.kernel.org/linux-kselftest/{self.id[1:-1]}/\n'
                 f'Commit Hash: {self.archive_hash}')
+
+def parse_message_from_str(raw_email: str, archive_hash: str) -> Message:
+    """Parses a Message from a raw email."""
+    compiled_email = email.message_from_string(raw_email)
+
+    content = []
+    if compiled_email.is_multipart():
+        for payload in compiled_email.get_payload():
+            content.append(payload.get_payload())
+    else:
+        content = compiled_email.get_payload()
+    return Message(compiled_email['Message-Id'],
+                   compiled_email['subject'],
+                   compiled_email['from'],
+                   compiled_email['In-Reply-To'],
+                   content,
+                   archive_hash)

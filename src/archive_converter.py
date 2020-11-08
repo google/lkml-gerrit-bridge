@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import email
 import os
 
 from absl import logging
 
 from typing import List, Dict, Optional
-from message import Message
+from message import Message, parse_message_from_str
 from message_dao import MessageDao
 
 class ArchiveMessageIndex(object):
@@ -73,12 +72,12 @@ class ArchiveMessageIndex(object):
             self._message_dao.store(parent)
 
 def generate_email_from_file(file: str) -> Optional[Message]:
+    archive_hash = file[12:-4]
     with open(file, "r") as raw_email:
         try:
-            compiled_email = email.message_from_string(raw_email.read())
-            return _email_to_message(compiled_email, file[12:-4])
+          return parse_message_from_str(raw_email.read(), archive_hash=archive_hash)
         except Exception as e:
-            logging.error('Failed to generate %s from archive. Error: %s', file[12:-4], e)
+            logging.error('Failed to generate %s from archive. Error: %s', archive_hash, e)
             return None
 
 def _email_to_message(compiled_email, archive_hash) -> Message:
