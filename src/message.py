@@ -67,9 +67,12 @@ class Message(object):
     def __repr__(self):
         return str(self)
 
+    def lore_link(self) -> str:
+        return 'https://lore.kernel.org/linux-kselftest/' + self.id[1:-1]
+
     def debug_info(self) -> str:
         return (f'Message ID: {self.id}\n'
-                f'Lore Link: https://lore.kernel.org/linux-kselftest/{self.id[1:-1]}/\n'
+                f'Lore Link: {self.lore_link()}\n'
                 f'Commit Hash: {self.archive_hash}')
 
 def parse_message_from_str(raw_email: str, archive_hash: str) -> Message:
