@@ -13,16 +13,9 @@
 # limitations under the License.
 
 from typing import Dict, List, Optional, Tuple
-import base64
-import pickle
-import os.path
 import re
 from absl import logging
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 from setup_gmail import Message
-from setup_gmail import find_thread
 
 class Comment(object):
     def __init__(self, raw_line, message):
@@ -629,14 +622,3 @@ def _map_patch_to_gerrit_change(patch: Patch) -> None:
 def map_comments_to_gerrit(patchset: Patchset):
     for patch in patchset.patches:
         _map_patch_to_gerrit_change(patch)
-
-def main():
-    email_thread = find_thread('PATCH v17 00/19')
-    patchset = parse_comments(email_thread)
-    map_comments_to_gerrit(patchset)
-    for patch in patchset.patches:
-        for comment in patch.comments:
-            logging.info('At %d: %s: %s:\n %s', comment.raw_line, str(comment.file), str(comment.line), comment.message)
-
-if __name__ == '__main__':
-    main()

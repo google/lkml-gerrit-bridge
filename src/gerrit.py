@@ -13,15 +13,9 @@
 # limitations under the License.
 
 from typing import Dict, List
-import base64
-import pickle
-import os.path
 import re
 from absl import logging
 from git import GerritGit
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
 from patch_parser import map_comments_to_gerrit, parse_comments, Patch, Patchset
 from pygerrit2 import GerritRestAPI
 from requests import PreparedRequest
