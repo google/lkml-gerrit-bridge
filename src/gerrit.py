@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List
+from typing import Any, Dict, List
 import re
 from absl import logging
 from git import GerritGit
@@ -33,7 +33,7 @@ def get_gerrit_rest_api(cookie_jar_path: str, gerrit_url: str) -> GerritRestAPI:
     return rest
 
 class HTTPCookieAuth(AuthBase):
-    def __init__(self, cookie_jar: CookieJar):
+    def __init__(self, cookie_jar: CookieJar) -> None:
         self.cookie_jar = cookie_jar
 
     def __call__(self, request: PreparedRequest):
@@ -41,7 +41,7 @@ class HTTPCookieAuth(AuthBase):
         return request
 
 class Gerrit(object):
-    def __init__(self, rest_api: GerritRestAPI):
+    def __init__(self, rest_api: GerritRestAPI) -> None:
         self._rest_api = rest_api
 
     def new_change(self, change):
@@ -61,7 +61,8 @@ class Gerrit(object):
                         change_id=change_id,
                         revision_id=revision_id))
 
-    def set_review(self, change_id: str, revision_id: str, review):
+    # TODO: fix type checking issues and set revision_id back to str.
+    def set_review(self, change_id: str, revision_id: Any, review):
         return self._rest_api.post(
                 '/changes/{change_id}/revisions/{revision_id}/review'.format(
                         change_id=change_id,

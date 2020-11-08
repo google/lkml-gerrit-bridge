@@ -12,26 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import re
 from absl import logging
 from message import Message
 
 class Comment(object):
-    def __init__(self, raw_line, message):
+    def __init__(self, raw_line, message) -> None:
         self.raw_line = raw_line
         self.message = message
-        self.children = []
+        # TODO: is this field used anymore?
+        self.children = []  # type: List[Any]
         self.line = None
         self.file = None
 
 class CoverLetter(object):
-    def __init__(self, text, comments):
+    def __init__(self, text, comments: List[Comment]) -> None:
         self.text = text
         self.comments = comments
 
 class Patch(object):
-    def __init__(self, message_id, text, text_with_headers, set_index, comments, change_id):
+    def __init__(self, message_id, text, text_with_headers, set_index, comments, change_id) -> None:
         self.message_id = message_id
         self.text = text
         self.text_with_headers = text_with_headers
@@ -41,29 +42,29 @@ class Patch(object):
         self.revision_id = None
 
 class Patchset(object):
-    def __init__(self, cover_letter, patches):
+    def __init__(self, cover_letter, patches) -> None:
         self.cover_letter = cover_letter
         self.patches = patches
 
 class Line(object):
-    def __init__(self, line_number, text):
+    def __init__(self, line_number, text) -> None:
         self.line_number = line_number
         self.text = text
 
 class QuotedLine(object):
-    def __init__(self, parent_line_number, child_line_number, text):
+    def __init__(self, parent_line_number, child_line_number, text) -> None:
         self.parent_line_number = parent_line_number
         self.child_line_number = child_line_number
         self.text = text
 
 class CommentLine(object):
-    def __init__(self, last_parent_line_number, child_line_number, text):
+    def __init__(self, last_parent_line_number, child_line_number, text) -> None:
         self.last_parent_line_number = last_parent_line_number
         self.child_line_number = child_line_number
         self.text = text
 
 class ProbablyQuoted(Line):
-    def __init__(self, parent_line_number, child_line_number, text):
+    def __init__(self, parent_line_number, child_line_number, text) -> None:
         self.parent_line_number = parent_line_number
         self.child_line_number = child_line_number
         self.line_number = child_line_number
@@ -73,8 +74,8 @@ class ProbablyQuoted(Line):
         return 0.5
 
 class Trie(object):
-    def __init__(self):
-        self._children = {}
+    def __init__(self) -> None:
+        self._children = {}  # type: Dict[str, TrieNode]
 
     def insert(self, string: List[str]) -> None:
         if not string:
@@ -96,9 +97,9 @@ class Trie(object):
         return node.diff_best_match(string)
 
 class TrieNode(object):
-    def __init__(self, letter):
+    def __init__(self, letter: str) -> None:
         self._letter = letter
-        self._children = {}
+        self._children = {}  # type: Dict[str, TrieNode]
         self._leaf = False
 
     def insert(self, string: List[str]) -> None:
@@ -279,7 +280,7 @@ def _merge_comment_lines(comment_lines: List[CommentLine]) -> List[Comment]:
         if line.last_parent_line_number not in comment_map:
             comment_map[line.last_parent_line_number] = []
         comment_map[line.last_parent_line_number].append(line)
-    comment_list = []
+    comment_list = []  # type: List[Comment]
     for last_parent_line_number, line_list in comment_map.items():
         message = '\n'.join([line.text for line in line_list])
         comment_list.append(Comment(raw_line=last_parent_line_number, message=message))
@@ -319,7 +320,7 @@ def _find_cover_letter_replies(email_thread: Message) -> List[Message]:
 
 def parse_comments(email_thread: Message) -> Patchset:
     replies = _find_cover_letter_replies(email_thread)
-    comments = []
+    comments = []  # type: List[Comment]
     for reply in replies:
         comments.extend(_diff_reply(email_thread, reply))
     cover_letter = CoverLetter(text=email_thread.content, comments=comments)
@@ -348,7 +349,7 @@ def parse_comments(email_thread: Message) -> Patchset:
 
 
 class PatchFileChunkLineMap(object):
-    def __init__(self, in_range: Tuple[int, int], side: str, offset: int):
+    def __init__(self, in_range: Tuple[int, int], side: str, offset: int) -> None:
         self.in_range = in_range
         self.side = side
         self.offset = offset
@@ -363,7 +364,7 @@ class PatchFileChunkLineMap(object):
             raise IndexError('Expected ' + str(self.in_range[0]) + ' <= ' + str(raw_line) + ' <= ' + str(self.in_range[1]))
 
 class PatchFileLineMap(object):
-    def __init__(self, name: str, chunks: List[PatchFileChunkLineMap]):
+    def __init__(self, name: str, chunks: List[PatchFileChunkLineMap]) -> None:
         self.name = name
         self.chunks = chunks
         self.in_range = (chunks[0].in_range[0], chunks[-1].in_range[1])
@@ -382,7 +383,7 @@ class PatchFileLineMap(object):
 
 
 class RawLineToGerritLineMap(object):
-    def __init__(self, patch_files: List[PatchFileLineMap]):
+    def __init__(self, patch_files: List[PatchFileLineMap]) -> None:
         self.patch_files = patch_files
 
     def __contains__(self, raw_line):

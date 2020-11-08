@@ -33,7 +33,7 @@ def _git(verb: str, *args, cwd=None, input=None) -> str:
     return stdout
 
 class _Git(object):
-    def __init__(self, git_dir: str):
+    def __init__(self, git_dir: str) -> None:
         self._git_dir = git_dir
 
     def clone(self, remote, *args):
@@ -75,7 +75,7 @@ def _parse_gerrit_patch_push(gerrit_result: str) -> str:
 CURL_CHANGE_ID_CMD = 'curl -Lo `git rev-parse --git-dir`/hooks/commit-msg https://gerrit-review.googlesource.com/tools/hooks/commit-msg ; chmod +x `git rev-parse --git-dir`/hooks/commit-msg'
 
 class GerritGit(object):
-    def __init__(self, git_dir: str, cookie_jar_path: str, url: str, project: str, branch: str):
+    def __init__(self, git_dir: str, cookie_jar_path: str, url: str, project: str, branch: str) -> None:
         self._git_dir = git_dir
         self._cookie_jar_path = cookie_jar_path
         self._git = _Git(git_dir)

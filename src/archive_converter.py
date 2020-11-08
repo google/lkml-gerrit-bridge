@@ -21,7 +21,7 @@ from message import Message, parse_message_from_str
 from message_dao import MessageDao
 
 class ArchiveMessageIndex(object):
-    def __init__(self, message_dao : MessageDao):
+    def __init__(self, message_dao : MessageDao) -> None:
         self._message_dao = message_dao
 
     def update(self, data_dir: str) -> List[Message]:

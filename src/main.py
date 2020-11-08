@@ -40,7 +40,7 @@ WAIT_TIME = 10
 #TODO(@willliu): consider adding more specific errors to raise, instead of a catch-all
 
 class Server(object):
-    def __init__(self):
+    def __init__(self) -> None:
         rest = gerrit.get_gerrit_rest_api(COOKIE_JAR_PATH, GERRIT_URL)
         self.gerrit = gerrit.Gerrit(rest)
         self.gerrit_git = git.GerritGit(git_dir='gerrit_git_dir',
