@@ -79,17 +79,3 @@ def generate_email_from_file(file: str) -> Optional[Message]:
         except Exception as e:
             logging.error('Failed to generate %s from archive. Error: %s', archive_hash, e)
             return None
-
-def _email_to_message(compiled_email, archive_hash) -> Message:
-    content = []
-    if compiled_email.is_multipart():
-        for payload in compiled_email.get_payload():
-            content.append(payload.get_payload())
-    else:
-        content = compiled_email.get_payload()
-    return Message(compiled_email['Message-Id'],
-                   compiled_email['subject'],
-                   compiled_email['from'],
-                   compiled_email['In-Reply-To'],
-                   content,
-                   archive_hash)
