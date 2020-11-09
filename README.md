@@ -12,35 +12,17 @@ Sorry.
 
 ## What can the LKML Gerrit Bridge do now?
 
-Not a whole lot. It can pull in patches from a Gmail account, extract comments,
-map those comments into where Gerrit expects them, and provides some Python
-wrappers around Gerrit.
+Right now, the Bridge will clone and periodically pull from the
+https://lore.kernel.org/linux-kselftest/ git archives and push comments and new
+patches to [this Gerrit
+instance](https://linux-review.googlesource.com/q/project:linux%252Fkernel%252Fgit%252Ftorvalds%252Flinux).
 
 ## How do I set LKML Gerrit Bridge up?
 
-You need to do two things: Set up Gmail, and set up Gerrit cookies.
+You need to set up Gerrit cookies.
 
 To set up a server which uploads emails sent to the kselftest email list, you
-need to set up Gerrit Cookies and build a docker image.
-
-### Setting up Gmail
-
-First you need to create a label in your Gmail account called "KUnit Patchset".
-You need to then attach this label to any email you might want to import as a
-pach into Gerrit.
-
-Next you need to get a `credentials.json` file which will tell the LKML Gerrit
-Bridge what your Gmail account is and stuff like that. You can get that here:
-https://developers.google.com/gmail/api/quickstart/python#step_1_turn_on_the
-
-Finally, you need an API token. You can get that simply by running the
-patch\_parser. You can do this by running:
-
-```bash
-python3 patch_parser.py
-```
-
-NOTE: PYTHON MUST BE ABLE TO OPEN A BROWSER WINDOW FOR THIS TO WORK!!!
+also need to build a docker image.
 
 ### Setting up Gerrit cookies
 
@@ -73,21 +55,11 @@ docker build -t myimage .
 After running the build command, you will have created an image with the tag
 'myimage'.
 
-## Using LKML Gerrit Bridge
+## Running LKML Gerrit Bridge locally
 
-Right now all the LKML Gerrit Bridge does is find patches under you Gmail label
-and extracts comments. You can do this by running:
+NOTE: You might not be able to actually push new changes to the Gerrit instace
+unless your Git `user.name` has been granted the "Forge Committer" permission.
 
 ```bash
-python3 patch_parser.py
+python3 src/main.py
 ```
-
-## Eratta
-
-- Right now we have the patches it is looking for hardcoded, but we will be
-  fixing that shortly.
-- LKML Gerrit Bridge currently only works with Gmail. Again, we will be fixing
-  that shortly.
-- LKML Gerrit Bridge does not actually upload patches to Gerrit. We will be
-  fixing this shortly.
-
