@@ -39,7 +39,7 @@ class ArchiveMessageIndex(object):
         self._add_messages_to_index(new_messages)
         return new_messages
 
-    def size(self):
+    def size(self) -> int:
         return self._message_dao.size()
 
     def find(self, message_id : str) -> Message:
@@ -48,7 +48,7 @@ class ArchiveMessageIndex(object):
             raise ValueError(f'Could not find message: {message_id}')
         return message
 
-    def _add_messages_to_index(self, new_messages : List[Message]):
+    def _add_messages_to_index(self, new_messages : List[Message]) -> None:
         """ Iterates through all new emails and links together emails that form a thread by populating message.children. """
 
         need_parent : List[Message] = []

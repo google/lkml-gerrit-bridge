@@ -49,7 +49,7 @@ class Message(object):
             return int(match.group(1)), int(match.group(2))
         return (1, 1)
 
-    def __str__(self):
+    def __str__(self) -> str:
         in_reply_to = self.in_reply_to or ''
         return ('{\n' +
                 'id = ' + self.id + '\n' +
@@ -58,7 +58,7 @@ class Message(object):
                 # 'content = ' + self.content + '\n' +
                 '}')
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self)
 
     def lore_link(self) -> str:

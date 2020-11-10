@@ -59,7 +59,7 @@ def setup_archive(archive_path : str):
                            'https://lore.kernel.org/linux-kselftest/0',
                            'linux-kselftest/git/0.git'])
 
-def main():
+def main() -> None:
     print(fill_message_directory('../linux-kselftest/git/0.git', '../lkml-gerrit-bridge/test_data', 'cc49e216e3fdff0ffed7675dc7215aba5e3d05cc'))
 
 if __name__ == '__main__':

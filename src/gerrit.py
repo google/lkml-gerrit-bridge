@@ -23,7 +23,7 @@ from requests.auth import AuthBase
 from http.cookiejar import CookieJar, MozillaCookieJar
 from message import Message
 from archive_converter import ArchiveMessageIndex
-from message_dao import MessageDao
+import message_dao
 
 def get_gerrit_rest_api(cookie_jar_path: str, gerrit_url: str) -> GerritRestAPI:
     cookie_jar = MozillaCookieJar(cookie_jar_path)
@@ -44,7 +44,7 @@ class Gerrit(object):
     def __init__(self, rest_api: GerritRestAPI) -> None:
         self._rest_api = rest_api
 
-    def new_change(self, change):
+    def new_change(self, change: Dict[str, Any]):
         return self._rest_api.post('/changes/', data=change)
 
     def get_change(self, change_id: str):
@@ -62,7 +62,7 @@ class Gerrit(object):
                         revision_id=revision_id))
 
     # TODO: fix type checking issues and set revision_id back to str.
-    def set_review(self, change_id: str, revision_id: Any, review):
+    def set_review(self, change_id: str, revision_id: Any, review: Dict[str, Any]):
         return self._rest_api.post(
                 '/changes/{change_id}/revisions/{revision_id}/review'.format(
                         change_id=change_id,
@@ -110,7 +110,7 @@ def upload_all_comments(gerrit: Gerrit, patchset: Patchset):
     for patch in patchset.patches:
         upload_comments_for_patch(gerrit, patch)
 
-def main():
+def main() -> None:
     gerrit_url = 'https://linux-review.googlesource.com'
     gob_url = 'http://linux.googlesource.com'
     rest = get_gerrit_rest_api('gerritcookies', gerrit_url)
@@ -118,11 +118,12 @@ def main():
     gerrit_git = GerritGit(git_dir='gerrit_git_dir',
                            cookie_jar_path='gerritcookies',
                            url=gob_url, project='linux/kernel/git/torvalds/linux', branch='master')
-    archive_index = ArchiveMessageIndex(MessageDao())
+    dao = message_dao.MessageDao()
+    archive_index = ArchiveMessageIndex(dao)
     archive_index.update('test_data')
     email_thread = archive_index.find('<20200831110450.30188-1-boyan.karatotev@arm.com>')
     patchset = parse_comments(email_thread)
-    gerrit_git.apply_patchset_and_cleanup(patchset)
+    gerrit_git.apply_patchset_and_cleanup(patchset, dao)
     find_and_label_all_revision_ids(gerrit, patchset)
     upload_all_comments(gerrit, patchset)
     #change = {

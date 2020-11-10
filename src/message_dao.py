@@ -23,7 +23,7 @@ class MessageDao(object):
         # Maps message.id to message
         self._messages_seen : Dict[str, Message] = {}
 
-    def store(self, message : Message):
+    def store(self, message : Message) -> None:
         self._messages_seen[message.id] = message
 
     def get(self, message_id : str) -> Optional[Message]:
