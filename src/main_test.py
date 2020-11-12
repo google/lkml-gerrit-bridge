@@ -56,6 +56,9 @@ class MainTest(unittest.TestCase):
                                           mock_fill_message_directory):
         archive_index = ArchiveMessageIndex(MessageDao())
         messages = archive_index.update('test_data')
+
+        # Make sure the ordering is deterministic.
+        messages.sort(key=lambda m: m.id)
         first_batch = messages[0:6]
         second_batch = messages[6:]
         mock_fill_message_directory.return_value = ''
