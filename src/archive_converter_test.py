@@ -4,10 +4,12 @@ from message_dao import MessageDao
 from typing import List
 from message import Message
 
+from test_helpers import compare_message_subjects, test_data_path
+
 class ArchiveConverterTest(unittest.TestCase):
 
     def test_generate_email_from_single_email_thread(self):
-        email = generate_email_from_file("test_data/patch6.txt")
+        email = generate_email_from_file(test_data_path('patch6.txt'))
         self.assertEqual(email.subject, '[PATCH v2 1/2] Input: i8042 - Prevent intermixing i8042 commands')
         self.assertEqual(email.in_reply_to, None)
         self.assertEqual(email.from_, "Raul E Rangel <rrangel@chromium.org>")
@@ -15,18 +17,15 @@ class ArchiveConverterTest(unittest.TestCase):
 
     def test_update_with_no_changes_to_data(self):
         archive_index = ArchiveMessageIndex(MessageDao())
-        archive_index.update('test_data')
+        archive_index.update(test_data_path())
         old_size = archive_index.size()
-        archive_index.update('test_data')
+        archive_index.update(test_data_path())
         self.assertEqual(old_size, archive_index.size())
 
     def test_update_return_proper_patches(self):
         archive_index = ArchiveMessageIndex(MessageDao())
-        new_messages = archive_index.update('test_data')
+        new_messages = archive_index.update(test_data_path())
         self.assertEqual(len(new_messages), 8)
-
-        def compare_message_subject(messages : List[Message], subjects : List[str]):
-            self.assertCountEqual([m.subject for m in messages], subjects)
 
         subjects = ['Re: [PATCH] Remove final reference to superfluous smp_commence().',
                     '[PATCH v2 1/3] dmaengine: add dma_get_channel_caps()',
@@ -36,7 +35,7 @@ class ArchiveConverterTest(unittest.TestCase):
                     '[PATCH v2 2/4] kselftests/arm64: add nop checks for PAuth tests',
                     '[PATCH v2 3/4] kselftests/arm64: add PAuth test for whether exec() changes keys',
                     '[PATCH v2 4/4] kselftests/arm64: add PAuth tests for single threaded consistency and key uniqueness']
-        compare_message_subject(new_messages, subjects)
+        compare_message_subjects(self, new_messages, subjects)
 
 
 

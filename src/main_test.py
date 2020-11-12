@@ -14,6 +14,8 @@ from message_dao import MessageDao
 from patch_parser import parse_comments
 from message import Message
 
+from test_helpers import compare_message_subjects, test_data_path
+
 
 class MainTest(unittest.TestCase):
 
@@ -34,7 +36,7 @@ class MainTest(unittest.TestCase):
 
     def test_split_parent_and_reply_messages(self):
         archive_index = ArchiveMessageIndex(MessageDao())
-        messages = archive_index.update('test_data')
+        messages = archive_index.update(test_data_path())
         parents, replies = Server.split_parent_and_reply_messages(messages)
         self.assertEqual(len(parents), 2)
         self.assertEqual(len(replies), 6)
@@ -48,10 +50,8 @@ class MainTest(unittest.TestCase):
                     '[PATCH v2 3/4] kselftests/arm64: add PAuth test for whether exec() changes keys',
                     '[PATCH v2 4/4] kselftests/arm64: add PAuth tests for single threaded consistency and key uniqueness']
 
-        def compare_message_subject(messages : List[Message], subjects : List[str]):
-            self.assertCountEqual([m.subject for m in messages], subjects)
-        compare_message_subject(parents, expected_parents)
-        compare_message_subject(replies, expected_replies)
+        compare_message_subjects(self, parents, expected_parents)
+        compare_message_subjects(self, replies, expected_replies)
 
     @mock.patch.object(archive_updater, 'fill_message_directory')
     @mock.patch.object(Server, 'upload_messages')
@@ -59,7 +59,7 @@ class MainTest(unittest.TestCase):
     def test_server_upload_across_batches(self, mock_upload_comments, mock_upload_messages,
                                           mock_fill_message_directory):
         archive_index = ArchiveMessageIndex(MessageDao())
-        messages = archive_index.update('test_data')
+        messages = archive_index.update(test_data_path())
 
         # Make sure the ordering is deterministic.
         messages.sort(key=lambda m: m.id)
