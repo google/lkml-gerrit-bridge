@@ -17,6 +17,10 @@ from message import Message
 
 class MainTest(unittest.TestCase):
 
+    def setUp(self):
+        self.addCleanup(mock.patch.stopall)
+        mock.patch.object(gerrit, 'get_gerrit_rest_api').start()
+
     def test_remove_files(self):
         self.tmp_dir = tempfile.mkdtemp()
         self.assertEqual(len(os.listdir(self.tmp_dir)), 0)
