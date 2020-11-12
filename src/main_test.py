@@ -45,8 +45,7 @@ class MainTest(unittest.TestCase):
                     '[PATCH v2 4/4] kselftests/arm64: add PAuth tests for single threaded consistency and key uniqueness']
 
         def compare_message_subject(messages : List[Message], subjects : List[str]):
-            for message, subject in zip(messages,subjects):
-                self.assertEqual(message.subject, subject)
+            self.assertCountEqual([m.subject for m in messages], subjects)
         compare_message_subject(parents, expected_parents)
         compare_message_subject(replies, expected_replies)
 
