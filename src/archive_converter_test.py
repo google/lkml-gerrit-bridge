@@ -26,8 +26,7 @@ class ArchiveConverterTest(unittest.TestCase):
         self.assertEqual(len(new_messages), 8)
 
         def compare_message_subject(messages : List[Message], subjects : List[str]):
-            for message, subject in zip(messages,subjects):
-                self.assertEqual(message.subject, subject)
+            self.assertCountEqual([m.subject for m in messages], subjects)
 
         subjects = ['Re: [PATCH] Remove final reference to superfluous smp_commence().',
                     '[PATCH v2 1/3] dmaengine: add dma_get_channel_caps()',
