@@ -22,6 +22,7 @@ class MainTest(unittest.TestCase):
     def setUp(self):
         self.addCleanup(mock.patch.stopall)
         mock.patch.object(gerrit, 'get_gerrit_rest_api').start()
+        mock.patch.object(archive_updater, 'setup_archive').start()
 
     def test_remove_files(self):
         self.tmp_dir = tempfile.mkdtemp()
