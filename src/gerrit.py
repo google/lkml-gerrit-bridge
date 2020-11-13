@@ -40,7 +40,26 @@ class HTTPCookieAuth(AuthBase):
         request.prepare_cookies(self.cookie_jar)
         return request
 
-class Gerrit(object):
+
+class FakeGerrit(object):
+    def new_change(self, change: Dict[str, Any]):
+        pass
+
+    def get_change(self, change_id: str):
+        pass
+
+    def get_patch(self, change_id: str, revision_id: str):
+        pass
+
+    def get_review(self, change_id: str, revision_id: str):
+        pass
+
+    # TODO: fix type checking issues and set revision_id back to str.
+    def set_review(self, change_id: str, revision_id: Any, review: Dict[str, Any]):
+        pass
+
+
+class Gerrit(FakeGerrit):
     def __init__(self, rest_api: GerritRestAPI) -> None:
         self._rest_api = rest_api
 
@@ -68,6 +87,7 @@ class Gerrit(object):
                         change_id=change_id,
                         revision_id=revision_id),
                 data=review)
+
 
 def _find_and_label_revision_id(gerrit: Gerrit, patch: Patch):
     change_info = gerrit.get_change(patch.change_id)
