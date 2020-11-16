@@ -100,7 +100,7 @@ class GerritGit(object):
 
     def push_changes(self) -> str:
         try:
-            return self._git.push('HEAD:refs/for/' + self._branch)
+            return self._git.push(f'HEAD:refs/for/{self._branch}%notify=NONE')
         except subprocess.CalledProcessError as e:
             logging.warning('Failed to push upstream because %s.', e.output)
             raise
