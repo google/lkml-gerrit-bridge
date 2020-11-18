@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
 import os
 import re
 import shutil
 import subprocess
+import tempfile
+
+from message import lore_link
 import message_dao
 from patch_parser import Patch, Patchset
 from absl import logging
@@ -35,6 +39,9 @@ def _git(verb: str, *args, cwd=None, input=None) -> str:
 class _Git(object):
     def __init__(self, git_dir: str) -> None:
         self._git_dir = git_dir
+
+    def __call__(self, verb: str, *args) -> str:
+        return _git(verb, *args, cwd=self._git_dir)
 
     def clone(self, remote, *args) -> str:
         return _git('clone', *args, '--', remote, self._git_dir)
@@ -72,8 +79,6 @@ def _parse_gerrit_patch_push(gerrit_result: str) -> str:
     logging.info('change_id = %s', change_id)
     return change_id
 
-CURL_CHANGE_ID_CMD = 'curl -Lo `git rev-parse --git-dir`/hooks/commit-msg https://gerrit-review.googlesource.com/tools/hooks/commit-msg ; chmod +x `git rev-parse --git-dir`/hooks/commit-msg'
-
 class GerritGit(object):
     def __init__(self, git_dir: str, cookie_jar_path: str, url: str, project: str, branch: str) -> None:
         self._git_dir = git_dir
@@ -85,10 +90,7 @@ class GerritGit(object):
     def shallow_clone(self, depth=1) -> str:
         return self._git.clone(self._remote, '--depth', str(depth), '--single-branch', '--branch', self._branch)
 
-    def amend_commit(self) -> str:
-        return self._git.commit('--amend', '--no-edit')
-
-    def apply_patch(self, patch: Patch) -> str:
+    def _apply_patch(self, patch: Patch) -> str:
         try:
             return self._git.am(patch.text_with_headers)
         except subprocess.CalledProcessError as e:
@@ -98,6 +100,33 @@ class GerritGit(object):
             _git('am', '--abort', cwd=self._git_dir)
             raise
 
+    def _set_trailers(self, patch: Patch) -> str:
+        """Assuming `patch` is HEAD, edits the commit message before we upload to Gerrit.
+
+        Note: normally, we'd rely on a commit-msg or applypatch-msg hook for this.
+        But we have more context here, namely the message id so we can include a
+        link to the original message in Lore.
+
+        Args:
+            patch: the patch we've just applied.
+        """
+        original_message = self._git('log', '-1', '--format=%B').rstrip('\n')
+
+        # Set a deterministic Change-Id so we don't create duplicate changes.
+        # See https://gerrit-review.googlesource.com/Documentation/user-changeid.html
+        sha1 = hashlib.sha1(patch.message_id.encode()).hexdigest()
+        change_id_trailer = f'Change-Id: I{sha1}'
+        lore_trailer = 'Lore-Link: ' + lore_link(patch.message_id)
+
+        # Add trailers, changing them if they exist.
+        # It's _highly_ unlikely that they'd exist, but this seems to be the
+        # most sane way of handling that edge case.
+        with tempfile.NamedTemporaryFile(mode='wt') as f:
+          f.write(original_message)
+          self._git('interpret-trailers', '--in-place', '--if-exists=addIfDifferent',
+                    '--trailer', change_id_trailer,  '--trailer', lore_trailer, f.name)
+          return self._git.commit('--amend', '-F', f.name)
+
     def push_changes(self) -> str:
         try:
             return self._git.push(f'HEAD:refs/for/{self._branch}%notify=NONE')
@@ -106,8 +135,8 @@ class GerritGit(object):
             raise
 
     def push_patch(self, patch: Patch) -> Patch:
-        self.apply_patch(patch)
-        self.amend_commit()
+        self._apply_patch(patch)
+        self._set_trailers(patch)
         gerrit_output = self.push_changes()
         change_id = _parse_gerrit_patch_push(gerrit_output)
         patch.change_id = change_id
@@ -120,7 +149,6 @@ class GerritGit(object):
         self._git.config('user.name', '"lkml-gerrit-bridge"')
         # TODO: Change config to use a service account instead of @willliu
         self._git.config('user.email', '"willliu@google.com"')
-        subprocess.run(CURL_CHANGE_ID_CMD, cwd=self._git_dir, shell=True)
 
     def cleanup_git_dir(self) -> None:
         shutil.rmtree(self._git_dir)
