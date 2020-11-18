@@ -16,6 +16,9 @@ import email
 import re
 from typing import List, Optional, Tuple
 
+def lore_link(message_id: str) -> str:
+    return 'https://lore.kernel.org/linux-kselftest/' + message_id[1:-1]
+
 class Message(object):
     def __init__(self, id, subject, from_, in_reply_to, content, archive_hash) -> None:
         self.id = id
@@ -52,12 +55,9 @@ class Message(object):
     def __repr__(self) -> str:
         return str(self)
 
-    def lore_link(self) -> str:
-        return 'https://lore.kernel.org/linux-kselftest/' + self.id[1:-1]
-
     def debug_info(self) -> str:
         return (f'Message ID: {self.id}\n'
-                f'Lore Link: {self.lore_link()}\n'
+                f'Lore Link: {lore_link(self.id)}\n'
                 f'Commit Hash: {self.archive_hash}')
 
 def parse_message_from_str(raw_email: str, archive_hash: str) -> Message:
