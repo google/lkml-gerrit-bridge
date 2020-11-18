@@ -16,15 +16,6 @@ import email
 import re
 from typing import List, Optional, Tuple
 
-class Patch(object):
-    def __init__(self) -> None:
-        self.messages = []  # type: List[Message]
-        self.revision_id = ''  # type: str
-
-class Patchset(object):
-    def __init__(self) -> None:
-        self.patches = []  # type: List[Patch]
-
 class Message(object):
     def __init__(self, id, subject, from_, in_reply_to, content, archive_hash) -> None:
         self.id = id
