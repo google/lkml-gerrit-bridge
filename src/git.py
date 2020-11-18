@@ -87,7 +87,7 @@ class GerritGit(object):
         self._remote = url + '/' + project
         self._branch = branch
 
-    def shallow_clone(self, depth=1) -> str:
+    def _shallow_clone(self, depth=1) -> str:
         return self._git.clone(self._remote, '--depth', str(depth), '--single-branch', '--branch', self._branch)
 
     def _apply_patch(self, patch: Patch) -> str:
@@ -127,43 +127,43 @@ class GerritGit(object):
                     '--trailer', change_id_trailer,  '--trailer', lore_trailer, f.name)
           return self._git.commit('--amend', '-F', f.name)
 
-    def push_changes(self) -> str:
+    def _push_changes(self) -> str:
         try:
             return self._git.push(f'HEAD:refs/for/{self._branch}%notify=NONE')
         except subprocess.CalledProcessError as e:
             logging.warning('Failed to push upstream because %s.', e.output)
             raise
 
-    def push_patch(self, patch: Patch) -> Patch:
+    def _push_patch(self, patch: Patch) -> Patch:
         self._apply_patch(patch)
         self._set_trailers(patch)
-        gerrit_output = self.push_changes()
+        gerrit_output = self._push_changes()
         change_id = _parse_gerrit_patch_push(gerrit_output)
         patch.change_id = change_id
         return patch
 
-    def setup_git_dir(self, clone_depth=1) -> None:
+    def _setup_git_dir(self, clone_depth=1) -> None:
         os.makedirs(self._git_dir)
-        self.shallow_clone(depth=clone_depth)
+        self._shallow_clone(depth=clone_depth)
         self._git.config('http.cookiefile', '../' + self._cookie_jar_path)
         self._git.config('user.name', '"lkml-gerrit-bridge"')
         # TODO: Change config to use a service account instead of @willliu
         self._git.config('user.email', '"willliu@google.com"')
 
-    def cleanup_git_dir(self) -> None:
+    def _cleanup_git_dir(self) -> None:
         shutil.rmtree(self._git_dir)
 
     # Pass in the dao so that patches can be updated when they are pushed, this way less lost data when an error happens
     def apply_patchset_and_cleanup(self, patchset: Patchset, messages_dao: message_dao.MessageDao):
         if not os.path.isdir(self._git_dir):
-            self.setup_git_dir()
+            self._setup_git_dir()
         for patch in patchset.patches:
             # This should cause the server to clean up the git dir because of potential failures
             try:
                 message = messages_dao.get(patch.message_id)
                 if message:
-                    message.change_id = self.push_patch(patch).change_id
+                    message.change_id = self._push_patch(patch).change_id
                     messages_dao.store(message)
             except:
-                self.cleanup_git_dir()
+                self._cleanup_git_dir()
                 raise
