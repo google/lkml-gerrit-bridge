@@ -97,7 +97,7 @@ class GerritGit(object):
             logging.warning('Failed to apply patch %s due to %s. Aborting...',
                             patch.message_id,
                             e.output)
-            _git('am', '--abort', cwd=self._git_dir)
+            self._git('am', '--abort')
             raise
 
     def _set_trailers(self, patch: Patch) -> str:
