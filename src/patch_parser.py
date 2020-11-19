@@ -570,7 +570,8 @@ def _parse_patch_file_entry(lines: List[str], index: int) -> Optional[PatchFileL
         raise ValueError('Expected chunks in file, but found: ' + lines[0])
     return PatchFileLineMap(name=file_name, chunks=chunks)
 
-def _parse_patch_header(lines: List[str]) -> int:
+def _find_diff_start(lines: List[str]) -> int:
+    """Finds the start of the actual diff, after the commit message and the diffstat."""
     index = 0
 
     # Ignore everything before last '---'.
@@ -613,7 +614,7 @@ def _parse_patch_header(lines: List[str]) -> int:
 def _parse_git_patch(raw_patch: str) -> RawLineToGerritLineMap:
     lines = raw_patch.split('\n')
     lines = [line.strip() for line in lines]
-    index = _parse_patch_header(lines)
+    index = _find_diff_start(lines)
     file_entries = []
     file_entry = _parse_patch_file_entry(lines, index)
     while file_entry:
