@@ -334,7 +334,7 @@ def parse_comments(email_thread: Message) -> Patchset:
                                 set_index=set_index,
                                 comments=comments,
                                 change_id=patch.change_id))
-        patch_list.sort(key=lambda x: x.set_index)
+    patch_list.sort(key=lambda x: x.set_index)
     return Patchset(cover_letter=cover_letter, patches=patch_list)
 
 
