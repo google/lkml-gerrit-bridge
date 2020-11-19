@@ -46,6 +46,28 @@ class Patchset(object):
         self.cover_letter = cover_letter
         self.patches = patches
 
+class InputSource:
+    """Tracks the line number as we iterate over lines of text."""
+    _lines: List[str]
+    _base_line_number: int
+
+    def __init__(self, text: str, base_line_number=0):
+        self._base_line_number = base_line_number
+        self._lines = [l.strip() for l in text.split('\n')]
+
+    def __getitem__(self, index) -> str:
+        return self._lines[index]
+
+    def __len__(self) -> int:
+        return len(self._lines)
+
+    def line_number(self) -> int:
+        return self._base_line_number
+
+    def consume(self, n=1) -> None:
+        self._lines = self._lines[n:]
+        self._base_line_number += n
+
 class Line(object):
     """A line of text that tracks its line number."""
     def __init__(self, line_number: int, text: str) -> None:
@@ -406,213 +428,186 @@ SKIP_LINE_MATCHER = re.compile(r'^@@ -(\d+)(,\d+)? \+(\d+)(,\d+)? @@.*$')
 
 DIFF_LINE_MATCHER = re.compile(r'^diff --git a/\S+ b/(\S+)$')
 
-def _does_match_end_of_super_chunk(lines: List[str]) -> bool:
+def _does_match_end_of_super_chunk(lines: InputSource) -> bool:
     line = lines[0]
     return (line == '--') or (len(lines) <= 1) or bool(SKIP_LINE_MATCHER.match(line) or DIFF_LINE_MATCHER.match(line))
 
 def _parse_patch_file_unchanged_chunk(
-        lines: List[str],
-        raw_index: int,
+        lines: InputSource,
         gerrit_orig_line: int,
-        gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
-    in_start = raw_index
+        gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+    in_start = lines.line_number()
     while (not _does_match_end_of_super_chunk(lines)) and ((not lines[0]) or (lines[0] and lines[0][0] != '+' and lines[0][0] != '-')):
         logging.info('dropping line: %s', lines[0])
-        lines.pop(0)
+        lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
-        raw_index += 1
     return (gerrit_orig_line,
             gerrit_new_line,
-            raw_index,
-            PatchFileChunkLineMap(in_range=(in_start, raw_index - 1),
+            PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                   side='',
-                                  offset=(gerrit_new_line - raw_index)))
+                                  offset=(gerrit_new_line - lines.line_number())))
 
 def _parse_patch_file_added_chunk(
-        lines: List[str],
-        raw_index: int,
+        lines: InputSource,
         gerrit_orig_line: int,
-        gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
-    in_start = raw_index
+        gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+    in_start = lines.line_number()
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
-        lines.pop(0)
+        lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
-        raw_index += 1
     return (gerrit_orig_line,
             gerrit_new_line,
-            raw_index,
-            PatchFileChunkLineMap(in_range=(in_start, raw_index - 1),
+            PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                   side='',
-                                  offset=(gerrit_new_line - raw_index)))
+                                  offset=(gerrit_new_line - lines.line_number())))
 
 def _parse_patch_file_removed_chunk(
-        lines: List[str],
-        raw_index: int,
+        lines: InputSource,
         gerrit_orig_line: int,
-        gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
-    in_start = raw_index
+        gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+    in_start = lines.line_number()
     while lines[0] and lines[0][0] == '-':
-        lines.pop(0)
+        lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
-        raw_index += 1
     return (gerrit_orig_line,
             gerrit_new_line,
-            raw_index,
-            PatchFileChunkLineMap(in_range=(in_start, raw_index - 1),
+            PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                   side='b',
-                                  offset=(gerrit_new_line - raw_index)))
+                                  offset=(gerrit_new_line - lines.line_number())))
 
-def _parse_patch_file_chunk(lines: List[str],
-                            raw_index: int,
+def _parse_patch_file_chunk(lines: InputSource,
                             gerrit_orig_line: int,
-                            gerrit_new_line: int) -> Tuple[int, int, int, PatchFileChunkLineMap]:
+                            gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
     line = lines[0]
     start_line_len = len(lines)
     if _does_match_end_of_super_chunk(lines):
         raise ValueError('Unexpected line: ' + line)
     elif line and line[0] == '+':
         logging.info('First char - 0: %c', line[0])
-        ret_val =  _parse_patch_file_added_chunk(lines, raw_index, gerrit_orig_line, gerrit_new_line)
+        ret_val =  _parse_patch_file_added_chunk(lines, gerrit_orig_line, gerrit_new_line)
         if start_line_len == len(lines):
             raise ValueError('Could not parse add line: ' + line)
         return ret_val
     elif line and line[0] == '-':
-        ret_val = _parse_patch_file_removed_chunk(lines, raw_index, gerrit_orig_line, gerrit_new_line)
+        ret_val = _parse_patch_file_removed_chunk(lines, gerrit_orig_line, gerrit_new_line)
         if start_line_len == len(lines):
             raise ValueError('Could not parse remove line: ' + line)
         return ret_val
     else:
-        ret_val = _parse_patch_file_unchanged_chunk(lines, raw_index, gerrit_orig_line, gerrit_new_line)
+        ret_val = _parse_patch_file_unchanged_chunk(lines, gerrit_orig_line, gerrit_new_line)
         if start_line_len == len(lines):
             raise ValueError('Could not parse unchanged line: ' + line)
         return ret_val
 
-def _parse_patch_file_super_chunk(lines: List[str], raw_index: int) -> List[PatchFileChunkLineMap]:
+def _parse_patch_file_super_chunk(lines: InputSource) -> List[PatchFileChunkLineMap]:
     match = SKIP_LINE_MATCHER.match(lines[0])
     if not match:
         return []
     gerrit_orig_line = int(match.group(1))
     gerrit_new_line = int(match.group(3))
     logging.info('old starts at: %d, new starts at: %d', gerrit_orig_line, gerrit_new_line)
-    lines.pop(0)
-    raw_index += 1
+
+    lines.consume()
     chunks = []
     while not _does_match_end_of_super_chunk(lines):
         logging.info('lines left: %d', len(lines))
         (gerrit_orig_line,
          gerrit_new_line,
-         raw_index,
          chunk) = _parse_patch_file_chunk(lines,
-                                          raw_index,
                                           gerrit_orig_line,
                                           gerrit_new_line)
         chunks.append(chunk)
     return chunks
 
-def _parse_patch_file_entry(lines: List[str], index: int) -> Optional[PatchFileLineMap]:
+def _parse_patch_file_entry(lines: InputSource) -> Optional[PatchFileLineMap]:
     match = DIFF_LINE_MATCHER.match(lines[0])
     if not match:
         logging.info('failed to find file diff, instead found: %s', lines[0])
         return None
     file_name = match.group(1)
-    lines.pop(0)
-    index += 1
+    lines.consume()
 
     if re.match(r'^new file mode \d+$', lines[0]):
-        lines.pop(0)
-        index += 1
+        lines.consume()
 
     if re.match(r'^index [0-9a-f]+\.\.[0-9a-f]+( \d+)?$', lines[0]):
-        lines.pop(0)
-        index += 1
+        lines.consume()
     else:
         logging.info('failed to find index line, instead found: %s', lines[0])
         return None
     if re.match(r'^--- ((a/\S+$)|(/dev/null))', lines[0]):
-        lines.pop(0)
-        index += 1
+        lines.consume()
     else:
         logging.info('failed to find -- a/* line, instead found: %s', lines[0])
         return None
     if re.match(r'^\+\+\+ b/\S+$', lines[0]):
-        lines.pop(0)
-        index += 1
+        lines.consume()
     else:
         logging.info('failed to find ++ b/* line, instead found: %s', lines[0])
         return None
 
     chunks = []
-    super_chunk = _parse_patch_file_super_chunk(lines, index)
+    old_index = lines.line_number()
+    super_chunk = _parse_patch_file_super_chunk(lines)
     while super_chunk:
         chunks.extend(super_chunk)
         chunk = super_chunk[-1]
-        logging.info('parsed super chunk: %d to %d', index, chunk.in_range[1])
-        index = chunk.in_range[1]
+        logging.info('parsed super chunk: %d to %d', old_index, chunk.in_range[1])
+        old_index = lines.line_number()
         logging.info('about to parse: %s', lines[0])
-        super_chunk = _parse_patch_file_super_chunk(lines, index)
+        super_chunk = _parse_patch_file_super_chunk(lines)
     if not chunks:
         raise ValueError('Expected chunks in file, but found: ' + lines[0])
     return PatchFileLineMap(name=file_name, chunks=chunks)
 
-def _find_diff_start(lines: List[str]) -> int:
+def _find_diff_start(lines: InputSource) -> None:
     """Finds the start of the actual diff, after the commit message and the diffstat."""
-    index = 0
-
     # Ignore everything before last '---'.
     for i in reversed(range(len(lines))):
         if lines[i] == '---':
-            index = i
+            lines.consume(i)
             break
-    del lines[:index]
     if lines[0] == '---':
-        lines.pop(0)
-        index += 1
+        lines.consume()
     else:
         raise ValueError('failed to find ---, instead found: ' + lines[0])
 
     # Drop high level summary before first file diff.
     while re.match(r'^\S+\s+\|\s+\d+ \+*-*$', lines[0]):
-        lines.pop(0)
-        index += 1
+        lines.consume()
     if re.match(r'^\d+ file(s?) changed(, \d+ insertion(s?)\(\+\))?(, \d+ deletion(s?)\(\-\))?$', lines[0]):
-        lines.pop(0)
-        index += 1
+        lines.consume()
     else:
         raise ValueError('failed to find top level summary, instead found: ' + lines[0])
     while re.match(r'^create mode \d+ \S+$', lines[0]):
-        lines.pop(0)
-        index += 1
+        lines.consume()
 
     if not lines[0]:
-        lines.pop(0)
-        index += 1
+        lines.consume()
     else:
         logging.info('expected blank line after summary, instead got: %s', lines[0])
 
     # Make sure the next line is the start of a file diff.
-    if DIFF_LINE_MATCHER.match(lines[0]):
-        return index
-    else:
+    if not DIFF_LINE_MATCHER.match(lines[0]):
         raise ValueError('failed to find file diff, instead found: ' + lines[0])
 
 def _parse_git_patch(raw_patch: str) -> RawLineToGerritLineMap:
-    lines = raw_patch.split('\n')
-    lines = [line.strip() for line in lines]
-    index = _find_diff_start(lines)
+    lines = InputSource(raw_patch)
+    _find_diff_start(lines)
     file_entries = []
-    file_entry = _parse_patch_file_entry(lines, index)
+    file_entry = _parse_patch_file_entry(lines)
     while file_entry:
         file_entries.append(file_entry)
         index = file_entry.chunks[-1].in_range[-1]
-        file_entry = _parse_patch_file_entry(lines, index)
+        file_entry = _parse_patch_file_entry(lines)
     if lines and (lines[0] == '--' or lines[0] == ''):
         return RawLineToGerritLineMap(patch_files=file_entries)
     elif lines:
-        raise ValueError('Could not parse entire file: ' + str(lines))
+        raise ValueError(f'Could not parse entire file: error at line {lines.line_number()}: ' + lines[0])
     else:
         raise ValueError('Unknown error')
 
