@@ -49,18 +49,19 @@ class Patchset(object):
         self.patches = patches
 
 class Line(object):
-    def __init__(self, line_number, text) -> None:
+    """A line of text that tracks its line number."""
+    def __init__(self, line_number: int, text: str) -> None:
         self.line_number = line_number
         self.text = text
 
 class QuotedLine(object):
-    def __init__(self, parent_line_number, child_line_number, text) -> None:
+    def __init__(self, parent_line_number: int, child_line_number: int, text: str) -> None:
         self.parent_line_number = parent_line_number
         self.child_line_number = child_line_number
         self.text = text
 
 class CommentLine(object):
-    def __init__(self, last_parent_line_number, child_line_number, text) -> None:
+    def __init__(self, last_parent_line_number: int, child_line_number: int, text: str) -> None:
         self.last_parent_line_number = last_parent_line_number
         self.child_line_number = child_line_number
         self.text = text
@@ -222,10 +223,8 @@ def _find_quoted_lines(parent_lines: List[Line],
 
 def _to_lines(text: str) -> List[Line]:
     line_list = []
-    line_number = 0
-    for line in text.splitlines():
-        line_list.append(Line(text=line, line_number=line_number))
-        line_number += 1
+    for i, line in enumerate(text.splitlines()):
+        line_list.append(Line(text=line, line_number=i))
     return line_list
 
 def _filter_definitely_comments(child_lines: List[Line]) -> List[Line]:
