@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import textwrap
 from typing import Any, Dict, List, Optional, Tuple
 import re
+
 from absl import logging
 from message import Message
 
@@ -363,6 +365,10 @@ class PatchFileChunkLineMap(object):
         else:
             raise IndexError('Expected ' + str(self.in_range[0]) + ' <= ' + str(raw_line) + ' <= ' + str(self.in_range[1]))
 
+    def __repr__(self) -> str:
+        return f'PatchFileLineMap(side={self.side}, offset={self.offset}, range={self.in_range})'
+
+
 class PatchFileLineMap(object):
     def __init__(self, name: str, chunks: List[PatchFileChunkLineMap]) -> None:
         self.name = name
@@ -380,6 +386,10 @@ class PatchFileLineMap(object):
                 return self.name + side, line
         logging.info('%s was not in any chunk', str(raw_line))
         return self.name, -1
+
+    def __repr__(self) -> str:
+        children = '\n'.join(textwrap.indent(repr(c), '  ') for c in self.chunks)
+        return f'PatchFileLineMap(name={self.name} range={self.in_range}\nchunks=\n{children})'
 
 
 class RawLineToGerritLineMap(object):
@@ -399,6 +409,10 @@ class RawLineToGerritLineMap(object):
                 return patch_file.map(raw_line)
         logging.info('%s was not found in patch', str(raw_line))
         return '', -1
+
+    def __repr__(self) -> str:
+        children = '\n'.join(textwrap.indent(repr(p), '  ') for p in self.patch_files)
+        return 'RawLineToGerritLineMap(\n' + children + '\n)'
 
 SKIP_LINE_MATCHER = re.compile(r'^@@ -(\d+)(,\d+)? \+(\d+)(,\d+)? @@.*$')
 
