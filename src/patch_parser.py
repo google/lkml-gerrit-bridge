@@ -65,15 +65,6 @@ class CommentLine(object):
         self.child_line_number = child_line_number
         self.text = text
 
-class ProbablyQuoted(Line):
-    def __init__(self, parent_line_number, child_line_number, text) -> None:
-        self.parent_line_number = parent_line_number
-        self.child_line_number = child_line_number
-        self.line_number = child_line_number
-        self.text = text
-
-    def score(self) -> float:
-        return 0.5
 
 class Trie(object):
     def __init__(self) -> None:
