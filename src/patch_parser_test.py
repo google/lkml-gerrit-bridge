@@ -1,4 +1,5 @@
 import unittest
+import patch_parser
 from patch_parser import parse_comments, map_comments_to_gerrit, Comment
 from archive_converter import ArchiveMessageIndex, generate_email_from_file
 from message_dao import MessageDao
@@ -76,6 +77,44 @@ class PatchParserTest(unittest.TestCase):
                     line=9,  # TODO: should be 7
                     message='Comment on old line 7, want on line 8 in new file.'),
         ])
+
+    def test_parse_git_patch(self):
+        raw_patch='''
+Commit message goes here.
+
+---
+ file | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/file b/file
+index fa2da6e55caa..1fc93eb38351 100644
+--- a/file
++++ b/file
+@@ -2,7 +2,8 @@ line 1
+ line 2  # this is line 11 in raw_patch
+ line 3
+ line 4
+-line 5
++line 5 - edit
++  inserted new line
+ line 6
+ line 7
+ line 8  # this is line 19 in raw_patch
+
+base-commit: 235360eb7cd778d7264c5e57358a3d144936b862
+--
+        '''.strip()
+
+        line_map = patch_parser._parse_git_patch(raw_patch)
+
+        # Line 8 is right before the start of the diff
+        self.assertEqual(line_map.map(10), ('', -1), msg=repr(line_map))
+        self.assertEqual(line_map.map(11), ('file', 2), msg=repr(line_map))
+        self.assertEqual(line_map.map(12), ('file', 3), msg=repr(line_map))
+        # TODO: fix this, it's off by one right now.
+        # Corresponds to line 8 in the original, but line 9 after the diff.
+        # self.assertEqual(line_map.map(19), ('file', 9), msg=repr(line_map))
+
 
     #TODO(willliu@google.com): Add tests for Multiple patches, no cover letter
 
