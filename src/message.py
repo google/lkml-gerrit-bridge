@@ -17,6 +17,7 @@ import re
 from typing import List, Optional, Tuple
 
 def lore_link(message_id: str) -> str:
+    # We store message ids enclosed in <>, so trim those off.
     return 'https://lore.kernel.org/linux-kselftest/' + message_id[1:-1]
 
 class Message(object):
