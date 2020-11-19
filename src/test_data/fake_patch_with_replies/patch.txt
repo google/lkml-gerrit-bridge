@@ -1,0 +1,35 @@
+From:   The Sender <sender@email.org>
+To:     reviewer@email.org, linux-kernel@vger.kernel.org
+Cc:     cc@email.com,
+Subject: [PATCH] subsystem: change things
+Date:   Mon, 31 Aug 2020 12:04:46 +0100
+Message-Id: <patch-message-id>
+
+This is the patch description.
+
+Signed-off-by: The Sender <sender@email.org>
+
+---
+ file | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/file b/file
+index fa2da6e55caa..1fc93eb38351 100644
+--- a/file
++++ b/file
+@@ -2,7 +2,8 @@ line 1
+ line 2
+ line 3
+ line 4
+-line 5
++line 5 - edit
++  inserted new line
+ line 6
+ line 7
+ line 8
+
+base-commit: 235360eb7cd778d7264c5e57358a3d144936b862
+--
+2.17.1
+
+
