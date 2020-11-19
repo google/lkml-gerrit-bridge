@@ -23,8 +23,6 @@ class Comment(object):
     def __init__(self, raw_line, message: str, file: Optional[str] = None, line: Optional[int] = None) -> None:
         self.raw_line = raw_line
         self.message = message
-        # TODO: is this field used anymore?
-        self.children = []  # type: List[Any]
         self.file = file
         self.line = line
 
