@@ -156,64 +156,6 @@ def _get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
     prefix_str, count = max(prefix_count_map.items(), key=lambda x: x[1])
     return prefix_str
 
-def _build_traversal_map(parent_lines: List[Line], child_lines: List[Line], quote_prefix: str) -> Dict[str, List[Line]]:
-    parent_line_set = set([line.text for line in parent_lines])
-    traversal_map : Dict[str, List[Line]] = {}
-    for line in child_lines:
-        line_text = line.text
-        if not line_text.startswith(quote_prefix):
-            # TODO(brendanhiggins@google.com): I should really add this to the
-            # comment_lines or something.
-            continue
-        line_text = line_text[len(quote_prefix):]
-        if line_text in parent_line_set:
-            if line_text not in traversal_map:
-                traversal_map[line_text] = []
-            traversal_map[line_text].append(line)
-        else:
-            # TODO(brendanhiggins@google.com): I should really add this to the
-            # comment_lines or something.
-            continue
-    return traversal_map
-
-def _find_maximal_map_traversal(traversal_map: Dict[str, List[Line]],
-                               parent_lines: List[Line],
-                               lines_so_far: List[QuotedLine]) -> List[QuotedLine]:
-    logging.info('len(parent_lines) = %d', len(parent_lines))
-    if not parent_lines:
-        return lines_so_far
-    parent_lines = parent_lines[:]
-    last_line = -1
-    if lines_so_far:
-        last_line = lines_so_far[-1].child_line_number
-    else:
-        lines_so_far = []
-    while parent_lines:
-        line = parent_lines.pop(0)
-        if line.text not in traversal_map:
-            continue
-        possible_matches = traversal_map[line.text]
-        possible_matches = [match for match in possible_matches if match.line_number > last_line]
-        if not possible_matches:
-            continue
-        possible_matches = [min(possible_matches, key=lambda x: x.line_number)]
-        # TODO(brendanhiggins@google.com): At the very least this recursion
-        # should probably be unrolled.
-        #
-        # Possibly not necessary, but I suspect that there is a Thompson VM
-        # style algorithmic improvement here.
-        possible_traversals = [_find_maximal_map_traversal(
-                traversal_map,
-                parent_lines,
-                lines_so_far + [
-                        QuotedLine(text=line.text,
-                                   parent_line_number=line.line_number,
-                                   child_line_number=match.line_number)])
-                               for match in possible_matches]
-        return max(possible_traversals, key=lambda x: len(x))
-    return lines_so_far
-
-
 NORMALIZE_WHITESPACE_MATCHER = re.compile(r'\s+')
 
 def _normalize_whitespace(string: str) -> str:
