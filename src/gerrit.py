@@ -99,6 +99,7 @@ def upload_comments_for_patch(gerrit: Gerrit, patch: Patch):
     review = {
             'tag': 'post_lkml_comments',
             'notify': 'NONE',  # NOTE: if we mirror from gerrit to lkml, we might want to notify eventually
+            'ignore_automatic_attention_set_rules': 'true',  # ditto above.
             'message': '\n\n'.join(patch_comments),
             'labels': {'Code-Review': 0},
             'comments': file_comments
