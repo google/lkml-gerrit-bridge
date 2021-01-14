@@ -98,6 +98,7 @@ def upload_comments_for_patch(gerrit: Gerrit, patch: Patch):
             file_comments[file_name].append(comment_as_dict)
     review = {
             'tag': 'post_lkml_comments',
+            'notify': 'NONE',  # NOTE: if we mirror from gerrit to lkml, we might want to notify eventually
             'message': '\n\n'.join(patch_comments),
             'labels': {'Code-Review': 0},
             'comments': file_comments
