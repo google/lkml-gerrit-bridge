@@ -121,8 +121,9 @@ class GerritGit(object):
         # Add trailers, changing them if they exist.
         # It's _highly_ unlikely that they'd exist, but this seems to be the
         # most sane way of handling that edge case.
-        with tempfile.NamedTemporaryFile(mode='wt') as f:
+        with tempfile.NamedTemporaryFile(mode='w+') as f:
           f.write(original_message)
+          f.flush() # Flush before we write to the file externally below
           self._git('interpret-trailers', '--in-place', '--if-exists=addIfDifferent',
                     '--trailer', change_id_trailer,  '--trailer', lore_trailer, f.name)
           return self._git.commit('--amend', '-F', f.name)
