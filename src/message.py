@@ -14,7 +14,7 @@
 
 import email
 import re
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, BinaryIO
 
 def lore_link(message_id: str) -> str:
     # We store message ids enclosed in <>, so trim those off.
@@ -61,9 +61,14 @@ class Message(object):
                 f'Lore Link: {lore_link(self.id)}\n'
                 f'Commit Hash: {self.archive_hash}')
 
-def parse_message_from_str(raw_email: str, archive_hash: str) -> Message:
+def parse_message_from_bytes(raw_email: bytes, archive_hash: str) -> Message:
     """Parses a Message from a raw email."""
-    compiled_email = email.message_from_string(raw_email)
+    # Apparently email.message_from_{string|bytes|file} does not use the content
+    # charset in the header to decode the payload so we have to do that
+    # ourselves.
+    header = email.parser.BytesHeaderParser().parsebytes(raw_email)
+    charset = header.get_content_charset() or 'utf-8'
+    compiled_email = email.message_from_string(raw_email.decode(charset))
 
     content = []
     if compiled_email.is_multipart():

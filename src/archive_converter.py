@@ -17,7 +17,7 @@ import os
 from absl import logging
 
 from typing import List, Dict, Optional
-from message import Message, parse_message_from_str
+from message import Message, parse_message_from_bytes
 from message_dao import MessageDao
 
 class ArchiveMessageIndex(object):
@@ -73,9 +73,9 @@ class ArchiveMessageIndex(object):
 
 def generate_email_from_file(file: str) -> Optional[Message]:
     archive_hash = file[12:-4]
-    with open(file, "r") as raw_email:
+    with open(file, "rb") as raw_email:
         try:
-          return parse_message_from_str(raw_email.read(), archive_hash=archive_hash)
+          return parse_message_from_bytes(raw_email.read(), archive_hash=archive_hash)
         except Exception as e:
             logging.error('Failed to generate %s from archive. Error: %s', archive_hash, e)
             return None

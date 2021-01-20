@@ -17,6 +17,7 @@ import glob
 import time
 
 from absl import app
+from absl import flags
 from absl import logging
 
 import archive_updater
@@ -37,17 +38,28 @@ COOKIE_JAR_PATH = 'gerritcookies'
 LOG_PATH = 'logs'
 WAIT_TIME = 10
 
+FLAGS = flags.FLAGS
+
+flags.DEFINE_boolean('dryrun', False, 'Run without uploading changes to Gerrit. Useful for debugging.')
+
 #TODO(@willliu): consider adding more specific errors to raise, instead of a catch-all
 
 class Server(object):
-    def __init__(self) -> None:
-        rest = gerrit.get_gerrit_rest_api(COOKIE_JAR_PATH, GERRIT_URL)
-        self.gerrit = gerrit.Gerrit(rest)
-        self.gerrit_git = git.GerritGit(git_dir='gerrit_git_dir',
-                                        cookie_jar_path=COOKIE_JAR_PATH,
-                                        url=GOB_URL,
-                                        project='linux/kernel/git/torvalds/linux',
-                                        branch='master')
+    def __init__(self, dryrun=False) -> None:
+        if dryrun:
+            self.gerrit = gerrit.FakeGerrit()
+            self.gerrit_git = git.DryrunGerritGit(git_dir='gerrit_git_dir',
+                                                  url=GOB_URL,
+                                                  project='linux/kernel/git/torvalds/linux',
+                                                  branch='master')
+        else:
+            rest = gerrit.get_gerrit_rest_api(COOKIE_JAR_PATH, GERRIT_URL)
+            self.gerrit = gerrit.Gerrit(rest)
+            self.gerrit_git = git.GerritGit(git_dir='gerrit_git_dir',
+                                            cookie_jar_path=COOKIE_JAR_PATH,
+                                            url=GOB_URL,
+                                            project='linux/kernel/git/torvalds/linux',
+                                            branch='master')
         self.message_dao = message_dao.MessageDao()
         self.archive_index = ArchiveMessageIndex(self.message_dao)
         self.last_hash = self.message_dao.get_last_hash()
@@ -158,7 +170,7 @@ class Server(object):
             logging.warning('Failed to upload %d/%d comments', failed, len(messages_with_new_comments))
 
 def main(argv) -> None:
-    server = Server()
+    server = Server(dryrun=FLAGS.dryrun)
     server.run()
 
 

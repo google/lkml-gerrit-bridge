@@ -11,3 +11,6 @@ linux-kselftest
 src/gerrit_git_dir
 src/index_files
 src/logs
+logs/
+gerrit_git_dir/
+index_files/

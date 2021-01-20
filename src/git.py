@@ -79,10 +79,10 @@ def _parse_gerrit_patch_push(gerrit_result: str) -> str:
     logging.info('change_id = %s', change_id)
     return change_id
 
-class GerritGit(object):
-    def __init__(self, git_dir: str, cookie_jar_path: str, url: str, project: str, branch: str) -> None:
+
+class DryrunGerritGit(object):
+    def __init__(self, git_dir: str, url: str, project: str, branch: str) -> None:
         self._git_dir = git_dir
-        self._cookie_jar_path = cookie_jar_path
         self._git = _Git(git_dir)
         self._remote = url + '/' + project
         self._branch = branch
@@ -128,11 +128,7 @@ class GerritGit(object):
           return self._git.commit('--amend', '-F', f.name)
 
     def _push_changes(self) -> str:
-        try:
-            return self._git.push(f'HEAD:refs/for/{self._branch}%notify=NONE')
-        except subprocess.CalledProcessError as e:
-            logging.warning('Failed to push upstream because %s.', e.output)
-            raise
+        pass
 
     def _push_patch(self, patch: Patch) -> Patch:
         self._apply_patch(patch)
@@ -145,7 +141,6 @@ class GerritGit(object):
     def _setup_git_dir(self, clone_depth=1) -> None:
         os.makedirs(self._git_dir)
         self._shallow_clone(depth=clone_depth)
-        self._git.config('http.cookiefile', '../' + self._cookie_jar_path)
         self._git.config('user.name', '"lkml-gerrit-bridge"')
         # TODO: Change config to use a service account instead of @willliu
         self._git.config('user.email', '"willliu@google.com"')
@@ -167,3 +162,22 @@ class GerritGit(object):
             except:
                 self._cleanup_git_dir()
                 raise
+
+
+class GerritGit(DryrunGerritGit):
+    def __init__(self, git_dir: str, cookie_jar_path: str, url: str, project: str, branch: str) -> None:
+        self._cookie_jar_path = cookie_jar_path
+        super().__init__(git_dir=git_dir, url=url, project=project, branch=branch)
+
+    def _push_changes(self) -> str:
+        try:
+            return self._git.push(f'HEAD:refs/for/{self._branch}%notify=NONE')
+        except subprocess.CalledProcessError as e:
+            logging.warning('Failed to push upstream because %s.', e.output)
+            raise
+
+    def setup_git_dir(self, clone_depth=1) -> None:
+        super._setup_git_dir(self, clone_depth)
+        self._git.config('http.cookiefile', '../' + self._cookie_jar_path)
+
+
