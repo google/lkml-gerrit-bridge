@@ -11,3 +11,7 @@ linux-kselftest
 src/gerrit_git_dir
 src/index_files
 src/logs
+.idea/
+logs/
+venv/
+.DS_Store
