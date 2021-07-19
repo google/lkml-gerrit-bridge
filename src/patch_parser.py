@@ -55,10 +55,12 @@ class InputSource:
     """Tracks the line number as we iterate over lines of text."""
     _lines: List[str]
     _base_line_number: int
+    _previous_item: str
 
     def __init__(self, text: str, base_line_number=0):
         self._base_line_number = base_line_number
         self._lines = [l.strip() for l in text.split('\n')]
+        self._previous_item = ""
 
     def __getitem__(self, index) -> str:
         return self._lines[index]
@@ -70,8 +72,15 @@ class InputSource:
         return self._base_line_number
 
     def consume(self, n=1) -> None:
+        self._previous_item = self._lines[1]
         self._lines = self._lines[n:]
         self._base_line_number += n
+
+    def set_previous_line(self, item):
+        self._previous_item = item
+
+    def get_previous_line(self):
+        return self._previous_item
 
 
 class Line(object):
@@ -277,7 +286,7 @@ def _diff_reply(parent: Message, child: Message) -> List[Comment]:
 def _filter_patches_and_cover_letter_replies(email_thread: Message) -> Tuple[List[Message], List[Message]]:
     patches = []
     cover_letter_replies = []
-    if (not email_thread.in_reply_to and email_thread.patch_index()[0] == 1):
+    if not email_thread.in_reply_to and email_thread.patch_index()[0] == 1:
         patches.append(email_thread)
     for message in email_thread.children:
         if message.is_patch():
@@ -428,9 +437,17 @@ def _parse_patch_file_added_chunk(
     in_start = lines.line_number()
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
+        previous = lines.get_previous_line()
+        previous = lines.get_previous_line()
         lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
+        if previous[0] == '-': # maybe add check to see if it is actually a modified one though I think this situation only applies when it actually is modified
+            return (gerrit_orig_line,
+                    gerrit_new_line,
+                    PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
+                                          side='',
+                                          offset=(gerrit_new_line - lines.line_number() - 1)))
     return (gerrit_orig_line,
             gerrit_new_line,
             PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
