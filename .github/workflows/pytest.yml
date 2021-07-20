@@ -38,7 +38,7 @@ jobs:
         codecov
       with:
           directory: ./coverage/reports/
-          files: ./coverage1.xml,./coverage2.xml
+          files: ./coverage.xml
           flags: unittests
           path_to_write_report: ./coverage/codecov_report.txt
           verbose: true
