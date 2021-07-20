@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 import textwrap
 from typing import Any, Dict, List, Optional, Tuple
 import re
@@ -154,6 +155,13 @@ class TrieNode(object):
             return string
         node = self._children[letter]
         return node.diff_best_match(string)
+
+
+@dataclasses.dataclass
+class HunkParserState:
+    deleted_lines: int = 0
+    gerrit_orig_line: int = 0
+    gerrit_new_line: int = 0
 
 
 def _get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
@@ -414,105 +422,93 @@ def _does_match_end_of_super_chunk(lines: InputSource) -> bool:
 
 def _parse_patch_file_unchanged_chunk(
         lines: InputSource,
-        gerrit_orig_line: int,
-        gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+        parser_state: HunkParserState) -> PatchFileChunkLineMap:
     in_start = lines.line_number()
     while (not _does_match_end_of_super_chunk(lines)) and (
             (not lines[0]) or (lines[0] and lines[0][0] != '+' and lines[0][0] != '-')):
         logging.info('dropping line: %s', lines[0])
         lines.consume()
-        gerrit_orig_line += 1
-        gerrit_new_line += 1
-    return (gerrit_orig_line,
-            gerrit_new_line,
-            PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
-                                  side='',
-                                  offset=(gerrit_new_line - lines.line_number())))
+        parser_state.gerrit_orig_line += 1
+        parser_state.gerrit_new_line += 1
+    offset = parser_state.gerrit_new_line - parser_state.deleted_lines - lines.line_number()
+    return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
+                                 side='', offset=offset)
 
 
 def _parse_patch_file_added_chunk(
         lines: InputSource,
-        gerrit_orig_line: int,
-        gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+        parser_state: HunkParserState) -> PatchFileChunkLineMap:
     in_start = lines.line_number()
+    parser_state.deleted_lines = 0
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
         previous = lines.get_previous_line()
-        previous = lines.get_previous_line()
         lines.consume()
-        gerrit_orig_line += 1
-        gerrit_new_line += 1
-        if previous[0] == '-': # maybe add check to see if it is actually a modified one though I think this situation only applies when it actually is modified
-            return (gerrit_orig_line,
-                    gerrit_new_line,
-                    PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
-                                          side='',
-                                          offset=(gerrit_new_line - lines.line_number() - 1)))
-    return (gerrit_orig_line,
-            gerrit_new_line,
-            PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
-                                  side='',
-                                  offset=(gerrit_new_line - lines.line_number())))
+        parser_state.gerrit_orig_line += 1
+        parser_state.gerrit_new_line += 1
+        if previous[0] == '-':  # TODO: maybe add check to see if it is actually a modified one though I think this
+            # situation only applies when it actually is modified
+            return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
+                                         side='',
+                                         offset=(parser_state.gerrit_new_line - lines.line_number() - 1))
+    return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
+                                 side='',
+                                 offset=(parser_state.gerrit_new_line - lines.line_number()))
 
 
 def _parse_patch_file_removed_chunk(
         lines: InputSource,
-        gerrit_orig_line: int,
-        gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+        parser_state: HunkParserState) -> PatchFileChunkLineMap:
     in_start = lines.line_number()
     while lines[0] and lines[0][0] == '-':
         lines.consume()
-        gerrit_orig_line += 1
-        gerrit_new_line += 1
-    return (gerrit_orig_line,
-            gerrit_new_line,
-            PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
-                                  side='b',
-                                  offset=(gerrit_new_line - lines.line_number())))
+        parser_state.gerrit_orig_line += 1
+        parser_state.gerrit_new_line += 1
+        parser_state.deleted_lines += 1
+    return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
+                                 side='b',
+                                 offset=(parser_state.gerrit_new_line - lines.line_number()))
 
 
 def _parse_patch_file_chunk(lines: InputSource,
-                            gerrit_orig_line: int,
-                            gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+                            parser_state: HunkParserState) -> PatchFileChunkLineMap:
     line = lines[0]
     start_line_len = len(lines)
     if _does_match_end_of_super_chunk(lines):
         raise ValueError('Unexpected line: ' + line)
     elif line and line[0] == '+':
         logging.info('First char - 0: %c', line[0])
-        ret_val = _parse_patch_file_added_chunk(lines, gerrit_orig_line, gerrit_new_line)
+        chunk_map = _parse_patch_file_added_chunk(lines, parser_state)
         if start_line_len == len(lines):
             raise ValueError('Could not parse add line: ' + line)
-        return ret_val
+        return chunk_map
     elif line and line[0] == '-':
-        ret_val = _parse_patch_file_removed_chunk(lines, gerrit_orig_line, gerrit_new_line)
+        chunk_map = _parse_patch_file_removed_chunk(lines, parser_state)
         if start_line_len == len(lines):
             raise ValueError('Could not parse remove line: ' + line)
-        return ret_val
+        return chunk_map
     else:
-        ret_val = _parse_patch_file_unchanged_chunk(lines, gerrit_orig_line, gerrit_new_line)
+        chunk_map = _parse_patch_file_unchanged_chunk(lines, parser_state)
         if start_line_len == len(lines):
             raise ValueError('Could not parse unchanged line: ' + line)
-        return ret_val
+        return chunk_map
 
 
 def _parse_patch_file_super_chunk(lines: InputSource) -> List[PatchFileChunkLineMap]:
+    parser_state = HunkParserState()
     match = SKIP_LINE_MATCHER.match(lines[0])
     if not match:
         return []
-    gerrit_orig_line = int(match.group(1))
-    gerrit_new_line = int(match.group(3))
-    logging.info('old starts at: %d, new starts at: %d', gerrit_orig_line, gerrit_new_line)
+    parser_state.gerrit_orig_line = int(match.group(1))
+    parser_state.gerrit_new_line = int(match.group(3))
+    logging.info('old starts at: %d, new starts at: %d', parser_state.gerrit_orig_line, parser_state.gerrit_new_line)
 
     lines.consume()
     chunks = []
     while not _does_match_end_of_super_chunk(lines):
         logging.info('lines left: %d', len(lines))
-        (gerrit_orig_line,
-         gerrit_new_line,
-         chunk) = _parse_patch_file_chunk(lines,
-                                          gerrit_orig_line,
-                                          gerrit_new_line)
+        chunk = _parse_patch_file_chunk(lines,
+                                        parser_state)
         chunks.append(chunk)
     return chunks
 
