@@ -39,6 +39,6 @@ jobs:
       with:
           files: src/coverage.xml
           flags: unittests
-          # path_to_write_report: ./coverage/codecov_report.txt
+          path_to_write_report: ./coverage/codecov_report.txt
           verbose: true
           fail_ci_if_error: true
