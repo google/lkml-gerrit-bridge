@@ -37,7 +37,6 @@ jobs:
         python -m pip install --upgrade codecov
         codecov
       with:
-          directory: ./
           files: coverage.xml
           flags: unittests
           path_to_write_report: ./coverage/codecov_report.txt
