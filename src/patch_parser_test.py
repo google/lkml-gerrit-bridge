@@ -136,6 +136,43 @@ class PatchParserTest(unittest.TestCase):
         self.assertEqual(line_map.map(11), ('file', 2), msg=repr(line_map))  # line 2, control assert
         self.assertEqual(line_map.map(13), ('fileb', 4), msg=repr(line_map))  # line 4 (deleted but shows in b file)
 
+    def test_many_deleted_lines(self):
+        raw_patch = '''
+                    Commit message goes here.
+
+                    ---
+                     file | 3 ++-
+                     1 file changed, 2 insertions(+), 1 deletion(-)
+
+                    diff --git a/file b/file
+                    index fa2da6e55caa..1fc93eb38351 100644
+                    --- a/file
+                    +++ b/file
+                    @@ -2,7 +2,8 @@ line 1
+                     line 2  # this is line 11 in raw_patch
+                     line 3 - 12
+                     - line 4 13
+                     - line 5 14
+                     - line 6 15
+                     - line 7 16
+                     line 8 (then 4) -17
+                     line 9 (then 5) -18
+                     line 10  (then 6) # this is line 19 in raw_patch
+
+                    base-commit: 235360eb7cd778d7264c5e57358a3d144936b862
+                    --
+                            '''.strip()
+        line_map = patch_parser._parse_git_patch(raw_patch)
+        self.assertEqual(line_map.map(11), ('file', 2), msg=repr(line_map))  # line 2 (11), control assert
+        self.assertEqual(line_map.map(12), ('file', 3), msg=repr(line_map))  # line 3 (12), control assert
+        self.assertEqual(line_map.map(13), ('fileb', 4), msg=repr(line_map))  # Lines 13 - 16 are deleted and should
+        self.assertEqual(line_map.map(14), ('fileb', 5), msg=repr(line_map))  # show on 'fileb' with their corresponding
+        self.assertEqual(line_map.map(15), ('fileb', 6), msg=repr(line_map))  # numbers.
+        self.assertEqual(line_map.map(16), ('fileb', 7), msg=repr(line_map))
+        self.assertEqual(line_map.map(17), ('file', 4), msg=repr(line_map))  # This are control lines, since they aren't
+        self.assertEqual(line_map.map(18), ('file', 5), msg=repr(line_map))  # modified but they will break if there's
+        self.assertEqual(line_map.map(19), ('file', 6), msg=repr(line_map))  # an issue with the numbering.
+
     def test_only_new_lines_patch(self):
         raw_patch = '''
     Commit message goes here.
