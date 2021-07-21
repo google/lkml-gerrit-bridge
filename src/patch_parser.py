@@ -90,7 +90,6 @@ class InputSource:
 
     def add_deleted_line(self):
         self._deleted_lines = self._deleted_lines + 1
-        logging.warning('DELETED LINES ---------> ' + str(self._deleted_lines))
 
     def reset_deleted_lines(self):
         self._deleted_lines = 0
@@ -511,14 +510,12 @@ def _parse_patch_file_chunk(lines: InputSource,
     if _does_match_end_of_super_chunk(lines):
         raise ValueError('Unexpected line: ' + line)
     elif line and line[0] == '+':
-        logging.warning('ADD')
         logging.info('First char - 0: %c', line[0])
         ret_val = _parse_patch_file_added_chunk(lines, gerrit_orig_line, gerrit_new_line, chunks)
         if start_line_len == len(lines):
             raise ValueError('Could not parse add line: ' + line)
         return ret_val
     elif line and line[0] == '-':
-        logging.warning('REMOVE')
         ret_val = _parse_patch_file_removed_chunk(lines, gerrit_orig_line, gerrit_new_line)
         if start_line_len == len(lines):
             raise ValueError('Could not parse remove line: ' + line)
