@@ -56,11 +56,14 @@ class InputSource:
     _lines: List[str]
     _base_line_number: int
     _previous_item: str
+    _number_of_edits: int
+    _deleted_lines: int
 
     def __init__(self, text: str, base_line_number=0):
         self._base_line_number = base_line_number
         self._lines = [l.strip() for l in text.split('\n')]
         self._previous_item = ""
+        self._deleted_lines = 0
 
     def __getitem__(self, index) -> str:
         return self._lines[index]
@@ -81,6 +84,16 @@ class InputSource:
 
     def get_previous_line(self):
         return self._previous_item
+
+    def get_number_of_deleted_lines(self):
+        return self._deleted_lines
+
+    def add_deleted_line(self):
+        self._deleted_lines = self._deleted_lines + 1
+        logging.warning('DELETED LINES ---------> ' + str(self._deleted_lines))
+
+    def reset_deleted_lines(self):
+        self._deleted_lines = 0
 
 
 class Line(object):
@@ -352,6 +365,12 @@ class PatchFileChunkLineMap(object):
             raise IndexError(
                 'Expected ' + str(self.in_range[0]) + ' <= ' + str(raw_line) + ' <= ' + str(self.in_range[1]))
 
+    def get_range(self) -> Tuple[int, int]:
+        return self.in_range
+
+    def get_side(self) -> str:
+        return self.side
+
     def __repr__(self) -> str:
         return f'PatchFileLineMap(side={self.side}, offset={self.offset}, range={self.in_range})'
 
@@ -423,21 +442,33 @@ def _parse_patch_file_unchanged_chunk(
         lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
-    return (gerrit_orig_line,
+        #logging.warning('Unchanged start: ' + str(in_start))
+        #logging.warning('Unchanged line: ' + lines[0])
+        #logging.warning('Unchanged lines - 1: ' + str(lines.line_number() - 1))
+    if lines.get_number_of_deleted_lines() == 0:
+        return (gerrit_orig_line,
             gerrit_new_line,
             PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                   side='',
                                   offset=(gerrit_new_line - lines.line_number())))
+    else:
+        return (gerrit_orig_line,
+                gerrit_new_line,
+                PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
+                                      side='',
+                                      offset=(gerrit_new_line - lines.get_number_of_deleted_lines() - lines.line_number())))
 
 
 def _parse_patch_file_added_chunk(
         lines: InputSource,
         gerrit_orig_line: int,
-        gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+        gerrit_new_line: int,
+        chunks: PatchFileChunkLineMap) -> Tuple[int, int, PatchFileChunkLineMap]:
     in_start = lines.line_number()
+    previous_number_of_removed_lines = lines.get_number_of_deleted_lines()
+    lines.reset_deleted_lines()
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
-        previous = lines.get_previous_line()
         previous = lines.get_previous_line()
         lines.consume()
         gerrit_orig_line += 1
@@ -461,6 +492,7 @@ def _parse_patch_file_removed_chunk(
         gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
     in_start = lines.line_number()
     while lines[0] and lines[0][0] == '-':
+        lines.add_deleted_line()
         lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
@@ -473,18 +505,20 @@ def _parse_patch_file_removed_chunk(
 
 def _parse_patch_file_chunk(lines: InputSource,
                             gerrit_orig_line: int,
-                            gerrit_new_line: int) -> Tuple[int, int, PatchFileChunkLineMap]:
+                            gerrit_new_line: int, chunks: PatchFileChunkLineMap) -> Tuple[int, int, PatchFileChunkLineMap]:
     line = lines[0]
     start_line_len = len(lines)
     if _does_match_end_of_super_chunk(lines):
         raise ValueError('Unexpected line: ' + line)
     elif line and line[0] == '+':
+        logging.warning('ADD')
         logging.info('First char - 0: %c', line[0])
-        ret_val = _parse_patch_file_added_chunk(lines, gerrit_orig_line, gerrit_new_line)
+        ret_val = _parse_patch_file_added_chunk(lines, gerrit_orig_line, gerrit_new_line, chunks)
         if start_line_len == len(lines):
             raise ValueError('Could not parse add line: ' + line)
         return ret_val
     elif line and line[0] == '-':
+        logging.warning('REMOVE')
         ret_val = _parse_patch_file_removed_chunk(lines, gerrit_orig_line, gerrit_new_line)
         if start_line_len == len(lines):
             raise ValueError('Could not parse remove line: ' + line)
@@ -512,7 +546,7 @@ def _parse_patch_file_super_chunk(lines: InputSource) -> List[PatchFileChunkLine
          gerrit_new_line,
          chunk) = _parse_patch_file_chunk(lines,
                                           gerrit_orig_line,
-                                          gerrit_new_line)
+                                          gerrit_new_line, chunks)
         chunks.append(chunk)
     return chunks
 
