@@ -165,7 +165,7 @@ class HunkParserState:
         return self._deleted_lines
 
     def add_deleted_line(self):
-        self._deleted_lines = self._deleted_lines + 1
+        self._deleted_lines += 1
 
     def reset_deleted_lines(self):
         self._deleted_lines = 0
