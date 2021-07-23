@@ -445,19 +445,11 @@ def _parse_patch_file_unchanged_chunk(
         # logging.warning('Unchanged start: ' + str(in_start))
         # logging.warning('Unchanged line: ' + lines[0])
         # logging.warning('Unchanged lines - 1: ' + str(lines.line_number() - 1))
-    if parser_state.get_number_of_deleted_lines() == 0:
-        return (gerrit_orig_line,
-                gerrit_new_line,
-                PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
-                                      side='',
-                                      offset=(gerrit_new_line - lines.line_number())))
-    else:
-        return (gerrit_orig_line,
-                gerrit_new_line,
-                PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
-                                      side='',
-                                      offset=(
-                                                  gerrit_new_line - parser_state.get_number_of_deleted_lines() - lines.line_number())))
+    offset = gerrit_new_line - parser_state.get_number_of_deleted_lines() - lines.line_number()
+    return (gerrit_orig_line,
+            gerrit_new_line,
+            PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
+                                  side='', offset=offset))
 
 
 def _parse_patch_file_added_chunk(
