@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import dataclasses
 import textwrap
 from typing import Any, Dict, List, Optional, Tuple
@@ -158,8 +159,7 @@ class TrieNode(object):
 
 @dataclasses.dataclass
 class HunkParserState:
-    _number_of_edits: int
-    _deleted_lines: int
+    _deleted_lines: int = 0
 
     def get_number_of_deleted_lines(self):
         return self._deleted_lines
@@ -168,9 +168,6 @@ class HunkParserState:
         self._deleted_lines += 1
 
     def reset_deleted_lines(self):
-        self._deleted_lines = 0
-
-    def __init__(self):
         self._deleted_lines = 0
 
 
@@ -466,8 +463,8 @@ def _parse_patch_file_added_chunk(
         lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
-        if previous[
-            0] == '-':  # maybe add check to see if it is actually a modified one though I think this situation only applies when it actually is modified
+        if previous[0] == '-':  # TODO: maybe add check to see if it is actually a modified one though I think this
+                        # situation only applies when it actually is modified
             return (gerrit_orig_line,
                     gerrit_new_line,
                     PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
@@ -487,10 +484,10 @@ def _parse_patch_file_removed_chunk(
         parser_state: HunkParserState) -> Tuple[int, int, PatchFileChunkLineMap]:
     in_start = lines.line_number()
     while lines[0] and lines[0][0] == '-':
-        parser_state.add_deleted_line()
         lines.consume()
         gerrit_orig_line += 1
         gerrit_new_line += 1
+        parser_state.add_deleted_line()
     return (gerrit_orig_line,
             gerrit_new_line,
             PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
@@ -541,7 +538,8 @@ def _parse_patch_file_super_chunk(lines: InputSource) -> List[PatchFileChunkLine
          gerrit_new_line,
          chunk) = _parse_patch_file_chunk(lines,
                                           gerrit_orig_line,
-                                          gerrit_new_line, parser_state)
+                                          gerrit_new_line,
+                                          parser_state)
         chunks.append(chunk)
     return chunks
 
