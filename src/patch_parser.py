@@ -433,7 +433,7 @@ def _parse_patch_file_unchanged_chunk(
         # logging.warning('Unchanged start: ' + str(in_start))
         # logging.warning('Unchanged line: ' + lines[0])
         # logging.warning('Unchanged lines - 1: ' + str(lines.line_number() - 1))
-    offset = parser_state.gerrit_new_line - parser_state._deleted_lines - lines.line_number()
+    offset = parser_state.gerrit_new_line - parser_state.deleted_lines - lines.line_number()
     return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                  side='', offset=offset)
 
@@ -443,7 +443,7 @@ def _parse_patch_file_added_chunk(
         parser_state: HunkParserState) -> PatchFileChunkLineMap:
     in_start = lines.line_number()
     previous_number_of_removed_lines = parser_state.deleted_lines
-    parser_state._deleted_lines = 0
+    parser_state.deleted_lines = 0
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
         previous = lines.get_previous_line()
@@ -468,14 +468,14 @@ def _parse_patch_file_removed_chunk(
         lines.consume()
         parser_state.gerrit_orig_line += 1
         parser_state.gerrit_new_line += 1
-        parser_state._deleted_lines += 1
+        parser_state.deleted_lines += 1
     return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                  side='b',
                                  offset=(parser_state.gerrit_new_line - lines.line_number()))
 
 
 def _parse_patch_file_chunk(lines: InputSource,
-                            parser_state: HunkParserState) -> Tuple[int, int, PatchFileChunkLineMap]:
+                            parser_state: HunkParserState) -> PatchFileChunkLineMap:
     line = lines[0]
     start_line_len = len(lines)
     if _does_match_end_of_super_chunk(lines):
@@ -512,7 +512,7 @@ def _parse_patch_file_super_chunk(lines: InputSource) -> List[PatchFileChunkLine
     while not _does_match_end_of_super_chunk(lines):
         logging.info('lines left: %d', len(lines))
         chunk = _parse_patch_file_chunk(lines,
-                                          parser_state)
+                                        parser_state)
         chunks.append(chunk)
     return chunks
 
