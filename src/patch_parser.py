@@ -160,6 +160,8 @@ class TrieNode(object):
 @dataclasses.dataclass
 class HunkParserState:
     _deleted_lines: int = 0
+    gerrit_orig_line = 0
+    gerrit_new_line = 0
 
     def get_number_of_deleted_lines(self):
         return self._deleted_lines
