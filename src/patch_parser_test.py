@@ -166,12 +166,12 @@ class PatchParserTest(unittest.TestCase):
         self.assertEqual(line_map.map(11), ('file', 2), msg=repr(line_map))  # line 2 (11), control assert
         self.assertEqual(line_map.map(12), ('file', 3), msg=repr(line_map))  # line 3 (12), control assert
         self.assertEqual(line_map.map(13), ('fileb', 4), msg=repr(line_map))  # Lines 13 - 16 are deleted and should
-        self.assertEqual(line_map.map(14), ('fileb', 5), msg=repr(line_map))  # show on 'fileb' with their corresponding
-        self.assertEqual(line_map.map(15), ('fileb', 6), msg=repr(line_map))  # numbers.
+        self.assertEqual(line_map.map(14), ('fileb', 5), msg=repr(line_map))  # show on 'fileb' with their
+        self.assertEqual(line_map.map(15), ('fileb', 6), msg=repr(line_map))  # corresponding numbers.
         self.assertEqual(line_map.map(16), ('fileb', 7), msg=repr(line_map))
         self.assertEqual(line_map.map(17), ('file', 4), msg=repr(line_map))  # This are control lines, since they aren't
-        self.assertEqual(line_map.map(18), ('file', 5), msg=repr(line_map))  # modified but they will break if there's
-        self.assertEqual(line_map.map(19), ('file', 6), msg=repr(line_map))  # an issue with the numbering.
+        self.assertEqual(line_map.map(18), ('file', 5), msg=repr(line_map))  # aren't modified but they will break if
+        self.assertEqual(line_map.map(19), ('file', 6), msg=repr(line_map))  # there's an issue with the numbering.
 
     def test_only_new_lines_patch(self):
         raw_patch = '''
