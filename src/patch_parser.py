@@ -159,18 +159,9 @@ class TrieNode(object):
 
 @dataclasses.dataclass
 class HunkParserState:
-    _deleted_lines: int = 0
+    deleted_lines: int = 0
     gerrit_orig_line = 0
     gerrit_new_line = 0
-
-    #def get_number_of_deleted_lines(self):
-    #    return self._deleted_lines
-
-  #  def add_deleted_line(self):
-  #      self._deleted_lines += 1
-
-  #  def reset_deleted_lines(self):
-  #      self._deleted_lines = 0
 
 
 def _get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
@@ -451,7 +442,7 @@ def _parse_patch_file_added_chunk(
         lines: InputSource,
         parser_state: HunkParserState) -> PatchFileChunkLineMap:
     in_start = lines.line_number()
-    previous_number_of_removed_lines = parser_state._deleted_lines
+    previous_number_of_removed_lines = parser_state.deleted_lines
     parser_state._deleted_lines = 0
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
