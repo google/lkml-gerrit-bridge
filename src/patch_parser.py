@@ -163,14 +163,14 @@ class HunkParserState:
     gerrit_orig_line = 0
     gerrit_new_line = 0
 
-    def get_number_of_deleted_lines(self):
-        return self._deleted_lines
+    #def get_number_of_deleted_lines(self):
+    #    return self._deleted_lines
 
-    def add_deleted_line(self):
-        self._deleted_lines += 1
+  #  def add_deleted_line(self):
+  #      self._deleted_lines += 1
 
-    def reset_deleted_lines(self):
-        self._deleted_lines = 0
+  #  def reset_deleted_lines(self):
+  #      self._deleted_lines = 0
 
 
 def _get_quote_prefix(parent_lines: List[Line], child_lines: List[Line]) -> str:
@@ -442,7 +442,7 @@ def _parse_patch_file_unchanged_chunk(
         # logging.warning('Unchanged start: ' + str(in_start))
         # logging.warning('Unchanged line: ' + lines[0])
         # logging.warning('Unchanged lines - 1: ' + str(lines.line_number() - 1))
-    offset = parser_state.gerrit_new_line - parser_state.get_number_of_deleted_lines() - lines.line_number()
+    offset = parser_state.gerrit_new_line - parser_state._deleted_lines - lines.line_number()
     return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                  side='', offset=offset)
 
@@ -451,8 +451,8 @@ def _parse_patch_file_added_chunk(
         lines: InputSource,
         parser_state: HunkParserState) -> PatchFileChunkLineMap:
     in_start = lines.line_number()
-    previous_number_of_removed_lines = parser_state.get_number_of_deleted_lines()
-    parser_state.reset_deleted_lines()
+    previous_number_of_removed_lines = parser_state._deleted_lines
+    parser_state._deleted_lines = 0
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
         previous = lines.get_previous_line()
@@ -477,7 +477,7 @@ def _parse_patch_file_removed_chunk(
         lines.consume()
         parser_state.gerrit_orig_line += 1
         parser_state.gerrit_new_line += 1
-        parser_state.add_deleted_line()
+        parser_state._deleted_lines += 1
     return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                  side='b',
                                  offset=(parser_state.gerrit_new_line - lines.line_number()))
