@@ -481,20 +481,20 @@ def _parse_patch_file_chunk(lines: InputSource,
         raise ValueError('Unexpected line: ' + line)
     elif line and line[0] == '+':
         logging.info('First char - 0: %c', line[0])
-        ret_val = _parse_patch_file_added_chunk(lines, parser_state)
+        chunk_map = _parse_patch_file_added_chunk(lines, parser_state)
         if start_line_len == len(lines):
             raise ValueError('Could not parse add line: ' + line)
-        return ret_val
+        return chunk_map
     elif line and line[0] == '-':
-        ret_val = _parse_patch_file_removed_chunk(lines, parser_state)
+        chunk_map = _parse_patch_file_removed_chunk(lines, parser_state)
         if start_line_len == len(lines):
             raise ValueError('Could not parse remove line: ' + line)
-        return ret_val
+        return chunk_map
     else:
-        ret_val = _parse_patch_file_unchanged_chunk(lines, parser_state)
+        chunk_map = _parse_patch_file_unchanged_chunk(lines, parser_state)
         if start_line_len == len(lines):
             raise ValueError('Could not parse unchanged line: ' + line)
-        return ret_val
+        return chunk_map
 
 
 def _parse_patch_file_super_chunk(lines: InputSource) -> List[PatchFileChunkLineMap]:
