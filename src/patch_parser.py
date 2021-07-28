@@ -442,7 +442,6 @@ def _parse_patch_file_added_chunk(
         lines: InputSource,
         parser_state: HunkParserState) -> PatchFileChunkLineMap:
     in_start = lines.line_number()
-    previous_number_of_removed_lines = parser_state.deleted_lines
     parser_state.deleted_lines = 0
     logging.info('First char - 1: %c', lines[0][0])
     while lines[0] and lines[0][0] == '+':
