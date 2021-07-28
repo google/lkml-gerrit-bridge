@@ -430,9 +430,6 @@ def _parse_patch_file_unchanged_chunk(
         lines.consume()
         parser_state.gerrit_orig_line += 1
         parser_state.gerrit_new_line += 1
-        # logging.debug('Unchanged start: ' + str(in_start))
-        # logging.debug('Unchanged line: ' + lines[0])
-        # logging.debug('Unchanged lines - 1: ' + str(lines.line_number() - 1))
     offset = parser_state.gerrit_new_line - parser_state.deleted_lines - lines.line_number()
     return PatchFileChunkLineMap(in_range=(in_start, lines.line_number() - 1),
                                  side='', offset=offset)
