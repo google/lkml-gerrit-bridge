@@ -231,10 +231,6 @@ base-commit: 235360eb7cd778d7264c5e57358a3d144936b862
         '''.strip()
 
         line_map = patch_parser._parse_git_patch(raw_patch)
-        print('line map first')
-        print(line_map)
-        print('line map end')
-
         # print(line_map.map(15))
 
         # Line 8 is right before the start of the diff
