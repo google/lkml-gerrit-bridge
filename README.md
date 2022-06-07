@@ -28,9 +28,10 @@ also need to build a docker image.
 
 First you need to get Gerrit to generate an API cookie; you can do this by:
 
-- Going to your Gerrit's webpage
-- Clicking on "Generate Password"
-- Following the instructions to generate a `.gitcookies` file
+- Go to your Gerrit's setting page (e.g. https://linux-review.googlesource.com/settings)
+- Scroll down to "HTTP Credentials"
+- Click on "Obtain password"
+- Follow the instructions to generate a `.gitcookies` file
 
 Then you need to copy the cookies that were added to a file called
 `gerritcookies` in this directory.
