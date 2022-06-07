@@ -7,6 +7,9 @@ WORKDIR /code
 # copy the dependencies file to the working directory
 COPY requirements.txt .
 
+# copy the gerrit cookies file to the working directory
+COPY gerritcookies .
+
 # install dependencies
 RUN pip3 install -r requirements.txt
 
