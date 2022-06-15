@@ -10,8 +10,12 @@ __pycache__
 linux-kselftest
 src/gerrit_git_dir
 src/index_files
+gerrit_git_dir/
+index_files/
 src/logs
 .idea/
 logs/
 venv/
 .DS_Store
+*.orig
+*.swp
