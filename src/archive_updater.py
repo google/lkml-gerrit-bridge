@@ -60,7 +60,7 @@ def setup_archive(archive_path : str):
                            'linux-kselftest/git/0.git'])
 
 def main() -> None:
-    print(fill_message_directory('../linux-kselftest/git/0.git', '../lkml-gerrit-bridge/test_data', 'cc49e216e3fdff0ffed7675dc7215aba5e3d05cc'))
+    print(fill_message_directory('../linux-kselftest/git/0.git', '../lkml-gerrit-bridge/test_data', 'ae9e7be4a03765456fe38287533e6446e8bbc93c'))
 
 if __name__ == '__main__':
     main()

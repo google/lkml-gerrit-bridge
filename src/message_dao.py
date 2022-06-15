@@ -15,7 +15,7 @@
 from typing import Dict, Optional
 from message import Message
 
-EPOCH_HASH = 'cc49e216e3fdff0ffed7675dc7215aba5e3d05cc'
+EPOCH_HASH = 'ae9e7be4a03765456fe38287533e6446e8bbc93c'
 
 class MessageDao(object):
 
