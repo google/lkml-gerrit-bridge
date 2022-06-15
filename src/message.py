@@ -31,14 +31,25 @@ class Message(object):
         self.archive_hash = archive_hash
         self.children = []  # type: List[Message]
 
-    def is_patch(self) -> bool:
+    def _is_patch_or_coverletter(self) -> bool:
         if re.match(r'\[.+\] .+', self.subject):
             return True
         return False
 
+    def is_patch(self) -> bool:
+        if self._is_patch_or_coverletter():
+            return self._patch_index()[0] > 0
+        return False
+
+    def is_coverletter(self) -> bool:
+        return self._is_patch_or_coverletter() and not self.is_patch()
+
     def patch_index(self) -> Tuple[int, int]:
-        if not self.is_patch():
-            raise ValueError(f'Missing patch index in subject: {self.subject}')
+         if not self._is_patch_or_coverletter():
+             raise ValueError(f'Missing patch index in subject: {self.subject}')
+         return self._patch_index()
+
+    def _patch_index(self) -> Tuple[int, int]:
         match = re.match(r'\[.+ (\d+)/(\d+)\] .+', self.subject)
         if match:
             return int(match.group(1)), int(match.group(2))

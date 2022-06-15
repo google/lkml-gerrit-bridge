@@ -105,7 +105,7 @@ class Server(object):
             if message.is_patch():
                 messages_to_upload.append(message.id)
             # Reply is a comment that's parent is not in this batch of messages. Its parent's comments should be reuploaded
-            else:
+            elif not message.is_coverletter():
                 messages_with_new_comments.add(message.in_reply_to)
 
         self.upload_messages(messages_to_upload)
