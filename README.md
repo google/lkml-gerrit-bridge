@@ -38,6 +38,17 @@ Then you need to copy the cookies that were added to a file called
 
 NOTE: YOU MUST ADD A COMMENT TO THE TOP OF THE COOKIE FILE: `# HTTP Cookie File`
 
+### Setting up Google Cloud credentials
+
+First you need to generate the gcloud credentials file. In order to do that,
+you have to:
+
+- Download gcloud CLI (follow instructions on https://cloud.google.com/sdk/docs/install)
+- Run `gcloud auth appplication-default login` in the terminal
+
+Then you need to copy the credentials file that was added to a file called 
+`credentials.json` in this directory.
+
 ### Building a docker image
 
 First, make sure that you have Docker installed on the device which is building
