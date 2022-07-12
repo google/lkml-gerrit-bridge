@@ -21,55 +21,47 @@ from message import Message, parse_message_from_str
 from message_dao import MessageDao
 
 class ArchiveMessageIndex(object):
-    def __init__(self, message_dao : MessageDao) -> None:
+    def __init__(self, message_dao: MessageDao) -> None:
         self._message_dao = message_dao
 
-    def update(self, data_dir: str) -> List[Message]:
+    def update(self, data_dir: str) -> Dict[str, Message]:
         """ Updates index with messages in the passed in directory.
-        Returns a list of new messages """
+        Returns a dictionary mapping new messages' ids to their corresponding message."""
 
-        new_messages : List[Message] = []
+        new_messages : Dict[str, Message] = {}
 
         for filename in os.listdir(data_dir):
             if not filename.endswith(".txt"):
                 continue
             email = generate_email_from_file(os.path.join(data_dir, filename))
             if email and not self._message_dao.get(email.id):
-                new_messages.append(email)
-        self._add_messages_to_index(new_messages)
+                new_messages[email.id] = email
+        self._populate_children(new_messages)
         return new_messages
 
-    def size(self) -> int:
-        return self._message_dao.size()
+    def _populate_children(self, new_messages: Dict[str, Message]) -> None:
+        """ Iterates through all new emails and links together emails that form
+        a thread by populating message.children. Parents from the database
+        that have a new reply are added to 'new_messages' in order to be stored
+        in the database once re-uploaded."""
 
-    def find(self, message_id : str) -> Message:
-        message = self._message_dao.get(message_id)
-        if message is None:
-            raise ValueError(f'Could not find message: {message_id}')
-        return message
+        # Iterate through a copy of the values to avoid altering the size of the iterator
+        for message in list(new_messages.values()):
 
-    def _add_messages_to_index(self, new_messages : List[Message]) -> None:
-        """ Iterates through all new emails and links together emails that form a thread by populating message.children. """
-
-        need_parent : List[Message] = []
-
-        # First iterates through all messages to distinguish between 1.) replies and 2.) the start of a thread.
-        for message in new_messages:
-            if not self._message_dao.get(message.id):
-                self._message_dao.store(message)
-
-            # If message is a reply, it needs to be associated with an existing thread
-            if message.in_reply_to is not None:
-                need_parent.append(message)
+            # Associate a message with an existing thread only if the message is a reply
+            if message.in_reply_to is None:
                 continue
 
-        for message in need_parent:
-            parent = self._message_dao.get(message.in_reply_to)
-            if not parent:
-                logging.info('Could not find parent email, dropping %s', message.debug_info())
-                continue
-            parent.children.append(message)
-            self._message_dao.store(parent)
+            if message.in_reply_to in new_messages:
+                parent = new_messages.get(message.in_reply_to)
+                parent.children.append(message)
+            else:
+                parent = self._message_dao.get(message.in_reply_to)
+                if not parent:
+                    logging.info('Could not find parent email, dropping %s', message.debug_info())
+                    continue
+                parent.children.append(message)
+                new_messages[parent.id] = parent
 
 def generate_email_from_file(file: str) -> Optional[Message]:
     archive_hash = file[12:-4]

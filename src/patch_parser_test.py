@@ -2,7 +2,7 @@ import unittest
 import patch_parser
 from patch_parser import parse_comments, map_comments_to_gerrit, Comment
 from archive_converter import ArchiveMessageIndex, generate_email_from_file
-from message_dao import MessageDao
+from message_dao import FakeMessageDao
 
 from test_helpers import test_data_path
 
@@ -18,10 +18,10 @@ class PatchParserTest(unittest.TestCase):
             self.assertEqual(got.line, want.line)
 
     def test_parse_comments_for_single_email_thread(self):
-        archive_index = ArchiveMessageIndex(MessageDao())
-        archive_index.update(test_data_path())
+        archive_index = ArchiveMessageIndex(FakeMessageDao())
+        archives = archive_index.update(test_data_path())
         patchset = parse_comments(
-            archive_index.find(
+            archives.get(
                 '<20200827144112.v2.1.I6981f9a9f0c12e60f8038f3b574184f8ffc1b9b5@changeid>'))
 
         self.assertTrue(len(patchset.patches) > 0)
@@ -32,9 +32,9 @@ class PatchParserTest(unittest.TestCase):
         self.assertEqual(first_patch.comments, [])
 
     def test_parse_comments_for_multi_email_thread_with_cover_letter(self):
-        archive_index = ArchiveMessageIndex(MessageDao())
-        archive_index.update(test_data_path())
-        patchset = parse_comments(archive_index.find('<20200831110450.30188-1-boyan.karatotev@arm.com>'))
+        archive_index = ArchiveMessageIndex(FakeMessageDao())
+        archives = archive_index.update(test_data_path())
+        patchset = parse_comments(archives.get('<20200831110450.30188-1-boyan.karatotev@arm.com>'))
 
         self.assertEqual(len(patchset.patches), 4)
         first_patch = patchset.patches[0]
@@ -52,12 +52,12 @@ class PatchParserTest(unittest.TestCase):
         self.assertEqual(len(patchset.patches), 0)
 
     def test_parse_with_replies(self):
-        archive_index = ArchiveMessageIndex(MessageDao())
-        archive_index.update(test_data_path('fake_patch_with_replies/'))
+        archive_index = ArchiveMessageIndex(FakeMessageDao())
+        archives = archive_index.update(test_data_path('fake_patch_with_replies/'))
 
-        self.assertEqual(archive_index.size(), 2)
+        self.assertEqual(len(archives), 2)
 
-        patchset = parse_comments(archive_index.find('<patch-message-id>'))
+        patchset = parse_comments(archives.get('<patch-message-id>'))
         map_comments_to_gerrit(patchset)
         self.assertEqual(len(patchset.patches), 1)
 

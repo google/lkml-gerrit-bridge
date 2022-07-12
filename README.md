@@ -49,6 +49,19 @@ you have to:
 Then you need to copy the credentials file that was added to a file called 
 `credentials.json` in this directory.
 
+### Setting up Database information
+
+Create a file named `.env` under `src/` that includes all of the following:
+
+```
+HOST = [HOST_NAME]
+USER = [USER_NAME]
+PASSWORD = [PASSWORD]
+DB = [NAME_OF_DATABASE]
+
+NOTE: The name of the database does not have to be an existing database.
+```
+
 ### Building a docker image
 
 First, make sure that you have Docker installed on the device which is building
