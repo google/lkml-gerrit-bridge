@@ -24,6 +24,7 @@ class Message(object):
     def __init__(self, id, subject, from_, in_reply_to, content, archive_hash) -> None:
         self.id = id
         self.subject = subject
+        self.normalized_subject = self._normalize_subject()
         self.from_ = from_
         self.in_reply_to = in_reply_to
         self.content = content
@@ -55,6 +56,9 @@ class Message(object):
             return int(match.group(1)), int(match.group(2))
         return (1, 1)
 
+    def _normalize_subject(self) -> str:
+        return self.subject.partition("] ")[2].lower()
+
     def __str__(self) -> str:
         in_reply_to = self.in_reply_to or ''
         return ('{\n' +
@@ -66,6 +70,14 @@ class Message(object):
 
     def __repr__(self) -> str:
         return str(self)
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Message):
+            return False
+        return (self.id == other.id and self.subject == other.subject
+        and self.from_ == other.from_ and self.in_reply_to == other.in_reply_to
+        and self.content == other.content and self.change_id == other.change_id
+        and self.archive_hash == other.archive_hash and self.children == other.children)
 
     def debug_info(self) -> str:
         return (f'Message ID: {self.id}\n'

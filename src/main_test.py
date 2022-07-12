@@ -10,12 +10,12 @@ import git
 
 from archive_converter import ArchiveMessageIndex
 from main import Server
-from message_dao import MessageDao
+from message_dao import FakeMessageDao
 from patch_parser import parse_comments
 from message import Message
+from google.cloud.sql.connector import Connector
 
 from test_helpers import compare_message_subjects, test_data_path
-
 
 class MainTest(unittest.TestCase):
 
@@ -23,6 +23,7 @@ class MainTest(unittest.TestCase):
         self.addCleanup(mock.patch.stopall)
         mock.patch.object(gerrit, 'get_gerrit_rest_api').start()
         mock.patch.object(archive_updater, 'setup_archive').start()
+        self.message_dao = FakeMessageDao()
 
     def test_remove_files(self):
         self.tmp_dir = tempfile.mkdtemp()
@@ -36,8 +37,8 @@ class MainTest(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_split_parent_and_reply_messages(self):
-        archive_index = ArchiveMessageIndex(MessageDao())
-        messages = archive_index.update(test_data_path())
+        archive_index = ArchiveMessageIndex(self.message_dao)
+        messages = archive_index.update(test_data_path()).values()
         parents, replies = Server.split_parent_and_reply_messages(messages)
         self.assertEqual(len(parents), 2)
         self.assertEqual(len(replies), 6)
@@ -59,27 +60,28 @@ class MainTest(unittest.TestCase):
     @mock.patch.object(Server, 'upload_comments')
     def test_server_upload_across_batches(self, mock_upload_comments, mock_upload_messages,
                                           mock_fill_message_directory):
-        archive_index = ArchiveMessageIndex(MessageDao())
-        messages = archive_index.update(test_data_path())
+        archive_index = ArchiveMessageIndex(self.message_dao)
+        messages_mapping = archive_index.update(test_data_path())
+        messages = list(messages_mapping.values())
 
         # Make sure the ordering is deterministic.
         messages.sort(key=lambda m: m.id)
-        first_batch = messages[0:6]
-        second_batch = messages[6:]
+        first_batch = {message.id : message for message in messages[0:6]}
+        second_batch = {message.id : message for message in messages[6:]}
         mock_fill_message_directory.return_value = ''
 
         # declaring mock objects here because I want to use the ArchiveMessageIndex functionality to build the test data
-        with mock.patch.object(ArchiveMessageIndex, 'update') as mock_update, mock.patch.object(MessageDao, 'get') as mock_get:
+        with mock.patch.object(ArchiveMessageIndex, 'update') as mock_update, mock.patch.object(FakeMessageDao, 'get') as mock_get:
             mock_update.side_effect = [first_batch, second_batch]
             mock_get.side_effect = [None, None, messages[6], messages[7]]
-            server = Server()
+            server = Server(self.message_dao)
             server.update_convert_upload()
-            mock_upload_messages.assert_called_with([messages[2].id,messages[3].id])
-            mock_upload_comments.assert_called_with(set())
+            mock_upload_messages.assert_called_with([messages[2],messages[3]])
+            mock_upload_comments.assert_called_with({})
 
             server.update_convert_upload()
-            mock_upload_messages.assert_called_with([messages[6].id,messages[7].id])
-            mock_upload_comments.assert_called_with(set())
+            mock_upload_messages.assert_called_with([messages[6],messages[7]])
+            mock_upload_comments.assert_called_with({})
 
 
     '''

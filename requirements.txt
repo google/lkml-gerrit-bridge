@@ -2,3 +2,5 @@ absl-py==0.10.0
 pygerrit2==2.0.13
 requests==2.24.0
 requests-oauthlib==1.3.0
+cloud-sql-python-connector[pymysql]==0.6.2
+python-dotenv==0.20.0

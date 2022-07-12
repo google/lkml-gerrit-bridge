@@ -19,8 +19,8 @@ import shutil
 import subprocess
 import tempfile
 
-from message import lore_link
 import message_dao
+from message import lore_link, Message
 from patch_parser import Patch, Patchset
 from absl import logging
 
@@ -58,15 +58,15 @@ class _Git(object):
     def commit(self, *args) -> str:
         return _git('commit', *args, cwd=self._git_dir)
 
-GERRIT_PUSH_MATCHER = re.compile(
-r'remote: Processing changes: refs: 1, new: 1, done(?:\s+remote: (?:(?:commit)|(?:warning)).+$)?\s+remote:\s+remote: SUCCESS\s+remote:\s+remote:\s+(https://[\w/+.-]+)\s+',
+GERRIT_CHANGE_URL_MATCHER = re.compile(
+r'SUCCESS\s+remote:\s+remote:\s+(https://[\w/+.-]+)\s+',
 flags=re.MULTILINE)
 
 GERRIT_CHANGE_ID_MATCHER = re.compile(r'^https://[\w/+.-]+\+/(\d+)$')
 
 def _parse_gerrit_patch_push(gerrit_result: str) -> str:
     logging.info('%s', gerrit_result)
-    match = GERRIT_PUSH_MATCHER.search(gerrit_result)
+    match = GERRIT_CHANGE_URL_MATCHER.search(gerrit_result)
     if match is None:
       raise ValueError(f'Could not find change url from gerrit output: {gerrit_result}')
     change_url = match.group(1)
@@ -154,17 +154,16 @@ class GerritGit(object):
     def _cleanup_git_dir(self) -> None:
         shutil.rmtree(self._git_dir)
 
-    # Pass in the dao so that patches can be updated when they are pushed, this way less lost data when an error happens
-    def apply_patchset_and_cleanup(self, patchset: Patchset, messages_dao: message_dao.MessageDao):
+    # Pass in the dao so that patches can be updated when they are pushed, this way less lost data when an error happens,
+    # and pass in the message directly to minimize database lookups
+    def apply_patchset_and_cleanup(self, patchset: Patchset, message: Message, message_dao: message_dao.MessageDao):
         if not os.path.isdir(self._git_dir):
             self._setup_git_dir()
         for patch in patchset.patches:
             # This should cause the server to clean up the git dir because of potential failures
             try:
-                message = messages_dao.get(patch.message_id)
-                if message:
-                    message.change_id = self._push_patch(patch).change_id
-                    messages_dao.store(message)
+                message.change_id = self._push_patch(patch).change_id
+                message_dao.store(message)
             except:
                 self._cleanup_git_dir()
                 raise

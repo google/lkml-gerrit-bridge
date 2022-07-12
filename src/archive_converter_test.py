@@ -1,12 +1,15 @@
 import unittest
 from archive_converter import generate_email_from_file, ArchiveMessageIndex
-from message_dao import MessageDao
+from message_dao import FakeMessageDao
 from typing import List
 from message import Message
 
 from test_helpers import compare_message_subjects, test_data_path
 
 class ArchiveConverterTest(unittest.TestCase):
+
+    def setUp(self):
+        self.message_dao = FakeMessageDao()
 
     def test_generate_email_from_single_email_thread(self):
         email = generate_email_from_file(test_data_path('patch6.txt'))
@@ -16,15 +19,15 @@ class ArchiveConverterTest(unittest.TestCase):
         self.assertTrue(len(email.content) > 0)
 
     def test_update_with_no_changes_to_data(self):
-        archive_index = ArchiveMessageIndex(MessageDao())
+        archive_index = ArchiveMessageIndex(self.message_dao)
         archive_index.update(test_data_path())
-        old_size = archive_index.size()
+        old_size = self.message_dao.size()
         archive_index.update(test_data_path())
-        self.assertEqual(old_size, archive_index.size())
+        self.assertEqual(old_size, self.message_dao.size())
 
     def test_update_return_proper_patches(self):
-        archive_index = ArchiveMessageIndex(MessageDao())
-        new_messages = archive_index.update(test_data_path())
+        archive_index = ArchiveMessageIndex(self.message_dao)
+        new_messages = archive_index.update(test_data_path()).values()
         self.assertEqual(len(new_messages), 8)
 
         subjects = ['Re: [PATCH] Remove final reference to superfluous smp_commence().',

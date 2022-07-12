@@ -2,6 +2,7 @@ credentials.json
 token.pickle
 index.pickle
 gerritcookies
+.env
 __pycache__
 # The following directories are generated during runtime and are used to assist
 # some of the functionality of lkml-gerrit-bridge. However, they are not
