@@ -23,6 +23,8 @@ import message_dao
 from message import lore_link, Message
 from patch_parser import Patch, Patchset
 from absl import logging
+from typing import Optional
+from patch_associator import PatchAssociator
 
 def _git(verb: str, *args, cwd=None, input=None) -> str:
     logging.debug('Running\ngit %s %s\n with input: %s', verb, ' '.join(args), input)
@@ -100,7 +102,7 @@ class GerritGit(object):
             self._git('am', '--abort')
             raise
 
-    def _set_trailers(self, patch: Patch) -> str:
+    def _set_trailers(self, patch: Patch, previous_version: Optional[Message]) -> str:
         """Assuming `patch` is HEAD, edits the commit message before we upload to Gerrit.
 
         Note: normally, we'd rely on a commit-msg or applypatch-msg hook for this.
@@ -114,8 +116,11 @@ class GerritGit(object):
 
         # Set a deterministic Change-Id so we don't create duplicate changes.
         # See https://gerrit-review.googlesource.com/Documentation/user-changeid.html
-        sha1 = hashlib.sha1(patch.message_id.encode()).hexdigest()
-        change_id_trailer = f'Change-Id: I{sha1}'
+        if previous_version is None:
+            change_id = hashlib.sha1(patch.message_id.encode()).hexdigest()
+        else:
+            change_id = previous_version.change_id
+        change_id_trailer = f'Change-Id: I{change_id}'
         lore_trailer = 'Lore-Link: ' + lore_link(patch.message_id)
 
         # Add trailers, changing them if they exist.
@@ -135,9 +140,9 @@ class GerritGit(object):
             logging.warning('Failed to push upstream because %s.', e.output)
             raise
 
-    def _push_patch(self, patch: Patch) -> Patch:
+    def _push_patch(self, patch: Patch, previous_version: Optional[Message]) -> Patch:
         self._apply_patch(patch)
-        self._set_trailers(patch)
+        self._set_trailers(patch, previous_version)
         gerrit_output = self._push_changes()
         change_id = _parse_gerrit_patch_push(gerrit_output)
         patch.change_id = change_id
@@ -156,13 +161,14 @@ class GerritGit(object):
 
     # Pass in the dao so that patches can be updated when they are pushed, this way less lost data when an error happens,
     # and pass in the message directly to minimize database lookups
-    def apply_patchset_and_cleanup(self, patchset: Patchset, message: Message, message_dao: message_dao.MessageDao):
+    def apply_patchset_and_cleanup(self, patchset: Patchset, message: Message, message_dao: message_dao.MessageDao, patch_associator: PatchAssociator):
         if not os.path.isdir(self._git_dir):
             self._setup_git_dir()
         for patch in patchset.patches:
             # This should cause the server to clean up the git dir because of potential failures
             try:
-                message.change_id = self._push_patch(patch).change_id
+                previous_version = patch_associator.get_previous_version(message, message_dao)
+                message.change_id = self._push_patch(patch, previous_version).change_id
                 message_dao.store(message)
             except:
                 self._cleanup_git_dir()

@@ -44,7 +44,7 @@ class MessageDao(object):
             user = os.environ.get("USER"),
             password = os.environ.get("PASSWORD")
         )
-    
+
     def _initialize_tables(self) -> None:
         db_name = os.environ.get("DB")
         if not db_name:
@@ -107,6 +107,24 @@ class MessageDao(object):
         msg.children = self._get_children(message_id)
         return msg
 
+    def find_matching(self, normalized_subject: str = "", from_: str = "") -> List[Message]:
+        criteria = {
+            "normalized_subject": normalized_subject,
+            "from_": from_
+        }
+    
+        non_empty = [(attr, value) for attr, value in criteria.items() if value != '']
+        if len(non_empty) == 0:
+            raise RuntimeError("Need to specify some attribute to match on!")
+        clauses = [f' {attr}=%s' for attr, _ in non_empty]
+        values = [value for _, value in non_empty]
+
+        query = "SELECT message_id FROM Messages WHERE change_id IS NOT NULL AND" + " AND".join(clauses)
+        with self.connection.cursor() as cursor:
+            cursor.execute(query, tuple(values))
+            res = cursor.fetchall()
+        return [self.get(tup[0]) for tup in res]
+
     def size(self) -> int:
         query = "SELECT COUNT(*) FROM Messages"
         with self.connection.cursor() as cursor:
@@ -148,3 +166,16 @@ class FakeMessageDao(MessageDao):
 
     def get_last_hash(self) -> int:
         return self.last_hash
+
+    def find_matching(self, normalized_subject: str = "", from_: str = "") -> List[Message]:
+        criteria = {
+            "normalized_subject": normalized_subject,
+            "from_": from_,
+        }
+    
+        def _Match(msg: Message):
+            if msg.change_id is None:
+                return False
+            return all(getattr(msg, attr) == value is not None for attr, value in criteria.items() if value != "")
+        
+        return filter(_Match, self._messages_seen.values())
