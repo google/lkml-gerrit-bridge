@@ -9,9 +9,10 @@ import gerrit
 import git
 
 from archive_converter import ArchiveMessageIndex
-from main import Server
+from main import Server, GIT_PATH
 from message_dao import FakeMessageDao
 from patch_parser import parse_comments
+from patch_associator import SimplePatchAssociator
 from message import Message
 from google.cloud.sql.connector import Connector
 
@@ -24,6 +25,7 @@ class MainTest(unittest.TestCase):
         mock.patch.object(gerrit, 'get_gerrit_rest_api').start()
         mock.patch.object(archive_updater, 'setup_archive').start()
         self.message_dao = FakeMessageDao()
+        self.patch_associator = SimplePatchAssociator(GIT_PATH)
 
     def test_remove_files(self):
         self.tmp_dir = tempfile.mkdtemp()
@@ -74,7 +76,7 @@ class MainTest(unittest.TestCase):
         with mock.patch.object(ArchiveMessageIndex, 'update') as mock_update, mock.patch.object(FakeMessageDao, 'get') as mock_get:
             mock_update.side_effect = [first_batch, second_batch]
             mock_get.side_effect = [None, None, messages[6], messages[7]]
-            server = Server(self.message_dao)
+            server = Server(self.message_dao, self.patch_associator)
             server.update_convert_upload()
             mock_upload_messages.assert_called_with([messages[2],messages[3]])
             mock_upload_comments.assert_called_with({})

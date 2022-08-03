@@ -50,6 +50,12 @@ class Message(object):
              raise ValueError(f'Missing patch index in subject: {self.subject}')
          return self._patch_index()
 
+    def version(self) -> int:
+        match = re.match(r'\[.+ v(\d+).*\]', self.subject)
+        if match:
+            return int(match.group(1))
+        return 1
+
     def _patch_index(self) -> Tuple[int, int]:
         match = re.match(r'\[.+ (\d+)/(\d+)\] .+', self.subject)
         if match:

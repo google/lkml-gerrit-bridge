@@ -27,6 +27,7 @@ import patch_parser
 from archive_converter import ArchiveMessageIndex
 from message import Message
 from message_dao import MessageDao
+from patch_associator import PatchAssociator, SimplePatchAssociator
 from typing import Collection, Dict, List, Set, Tuple
 
 GIT_PATH = '../linux-kselftest/git/0.git'
@@ -40,7 +41,7 @@ WAIT_TIME = 10
 #TODO(@willliu): consider adding more specific errors to raise, instead of a catch-all
 
 class Server(object):
-    def __init__(self, message_dao : MessageDao) -> None:
+    def __init__(self, message_dao : MessageDao, patch_associator: PatchAssociator) -> None:
         rest = gerrit.get_gerrit_rest_api(COOKIE_JAR_PATH, GERRIT_URL)
         self.gerrit = gerrit.Gerrit(rest)
         self.gerrit_git = git.GerritGit(git_dir='gerrit_git_dir',
@@ -49,6 +50,7 @@ class Server(object):
                                         project='linux/kernel/git/torvalds/linux',
                                         branch='master')
         self.message_dao = message_dao
+        self.patch_associator = patch_associator
         self.archive_index = ArchiveMessageIndex(self.message_dao)
         self.last_hash = self.message_dao.get_last_hash()
         archive_updater.setup_archive(GIT_PATH)
@@ -112,6 +114,11 @@ class Server(object):
                     parent = self.message_dao.get(message.in_reply_to)
                 messages_with_new_comments[parent.id] = parent
 
+        # Sort messages so that older versions are uploaded first
+        message_with_version = [(message, message.version()) for message in messages_to_upload]
+        message_with_version.sort(key=lambda tup : tup[1])
+        messages_to_upload = [tup[0] for tup in message_with_version]
+
         self.upload_messages(messages_to_upload)
 
         self.upload_comments(messages_with_new_comments)
@@ -132,7 +139,7 @@ class Server(object):
         for email_thread in messages_to_upload:
             try:
                 patchset = patch_parser.parse_comments(email_thread)
-                self.gerrit_git.apply_patchset_and_cleanup(patchset, email_thread, self.message_dao)
+                self.gerrit_git.apply_patchset_and_cleanup(patchset, email_thread, self.message_dao, self.patch_associator)
                 gerrit.find_and_label_all_revision_ids(self.gerrit, patchset)
                 gerrit.upload_all_comments(self.gerrit, patchset)
             except Exception as e:
@@ -172,7 +179,9 @@ class Server(object):
             logging.warning('Failed to upload %d/%d replies', failed, len(replies))
 
 def main(argv) -> None:
-    server = Server(MessageDao(GIT_PATH))
+    message_dao = MessageDao(GIT_PATH)
+    patch_associator = SimplePatchAssociator(GIT_PATH)
+    server = Server(message_dao, patch_associator)
     server.run()
 
 
